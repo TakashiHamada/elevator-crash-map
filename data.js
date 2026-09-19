@@ -1,5 +1,5 @@
 // 地名・座標・事故内容の調整はこのファイルで行います。座標は元画像に対する百分率です。
-window.MAP_CONFIG = { width:1536, height:1024, maxZoom:3.5, zoomStep:1.3 };
+window.MAP_CONFIG = { width:1536, height:1024, maxZoom:3.5, zoomStep:1.3, pinchSensitivity:3 };
 window.MAP_LABELS = [
   ['霧原市',47,27,'city'],['霧原駅',43.3,41,'station'],['東霧原駅',83,46.8,'station'],
   ['西山自然公園',12,13,'park'],['水辺の森公園',84,25,'park'],['南町運動公園',13,87,'park'],

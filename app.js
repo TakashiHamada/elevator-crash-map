@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  if (window.ARGStore.isDeleted()) return;
   const config = window.MAP_CONFIG;
   const records = window.ACCIDENTS;
   const map = document.querySelector('#map');
@@ -39,6 +40,7 @@
   });
 
   function renderMap() {
+    if (!map.isConnected) return;
     const scale = baseScale * zoom;
     offsetX = Math.min(0, Math.max(map.clientWidth - config.width * scale, offsetX));
     offsetY = Math.min(0, Math.max(map.clientHeight - config.height * scale, offsetY));
@@ -144,7 +146,11 @@
     pointers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if (pointers.size === 2) {
       const [a,b] = [...pointers.values()], distance = Math.hypot(a.x-b.x,a.y-b.y), bounds = map.getBoundingClientRect();
-      if (pinchDistance > 0) setZoom(zoom*distance/pinchDistance,(a.x+b.x)/2-bounds.left,(a.y+b.y)/2-bounds.top);
+      if (pinchDistance > 0) {
+        // 距離の変化率を累乗し、拡大・縮小の両方向に同じ感度を適用します。
+        const zoomRatio = Math.pow(distance / pinchDistance, config.pinchSensitivity);
+        setZoom(zoom * zoomRatio, (a.x+b.x)/2-bounds.left, (a.y+b.y)/2-bounds.top);
+      }
       pinchDistance = distance;
     } else {
       offsetX += event.clientX - previous.x; offsetY += event.clientY - previous.y; renderMap();
@@ -163,24 +169,27 @@
     if (event.key === '+' || event.key === '=') { event.preventDefault(); setZoom(zoom*config.zoomStep); }
     if (event.key === '-') { event.preventDefault(); setZoom(zoom/config.zoomStep); }
   });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !document.querySelector('#info-dialog').open) closeRecord(true); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !document.querySelector('dialog[open]')) closeRecord(true); });
   const dialog = document.querySelector('#info-dialog');
   const pages = {
     about:'<h2>このサイトについて</h2><p>エレベーター事故マップは、霧原市内の昇降機事故を地図上に記録するアーカイブです。事故のあった場所と、当時の状況を閲覧できます。</p><p>本サイトはARG（代替現実ゲーム）のために制作されたフィクションです。霧原市、施設、事故、出典として記載された資料はすべて架空であり、実在する地域・人物・組織とは関係ありません。</p>',
     guide:'<h2>地図の使い方</h2><ul><li>赤いエレベーターのアイコンを選ぶと、事故記録が開きます。</li><li>地図をドラッグして移動できます。＋／−、マウスホイール、または2本指のピンチ操作で拡大・縮小します。</li><li>町名・建物名・記録番号から検索できます。発生年でも絞り込めます。</li><li>⌖ ボタンで検索条件と表示範囲をリセットします。</li><li>地図にフォーカスすると矢印キーでも移動できます。Escで事故情報を閉じます。</li></ul>',
-    policy:'<h2>掲載情報について</h2><p>掲載されている事故、建物名、住所、資料・出典はすべて作品内の設定です。実際の安全情報や不動産情報としては使用できません。</p><p>本プロトタイプは静的な閲覧用サイトです。投稿・個人情報の収集・位置情報の取得は行いません。地図と事故アイコンは本作品用に生成した画像を使用しています。</p>'
+    policy:'<h2>掲載情報について</h2><p>掲載されている事故、建物名、住所、資料・出典はすべて作品内の設定です。実際の安全情報や不動産情報としては使用できません。</p><p>投稿内容はこのブラウザー内にのみ保存され、外部には送信されません。実在する個人の情報は入力しないでください。位置情報の取得は行いません。地図と事故アイコンは本作品用に生成した画像を使用しています。</p>'
   };
   document.querySelectorAll('[data-dialog]').forEach(button => button.addEventListener('click', () => { document.querySelector('#dialog-content').innerHTML = pages[button.dataset.dialog]; dialog.showModal(); }));
   document.querySelector('#dialog-close').addEventListener('click', () => dialog.close());
   document.querySelector('#dialog-done').addEventListener('click', () => dialog.close());
   dialog.addEventListener('click', event => { const bounds = dialog.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close(); });
-  new ResizeObserver(() => {
+  const mapResizeObserver = new ResizeObserver(() => {
+    if (!map.isConnected) { mapResizeObserver.disconnect(); return; }
     const oldScale = baseScale*zoom;
     const centerX = (map.clientWidth/2-offsetX)/oldScale, centerY = (map.clientHeight/2-offsetY)/oldScale;
     baseScale = Math.max(map.clientWidth/config.width,map.clientHeight/config.height);
     offsetX = map.clientWidth/2-centerX*baseScale*zoom; offsetY = map.clientHeight/2-centerY*baseScale*zoom; renderMap();
-  }).observe(map);
+  });
+  mapResizeObserver.observe(map);
   function readHash() {
+    if (!map.isConnected) return;
     const id = new URLSearchParams(location.hash.slice(1)).get('record');
     if (id && records.some(record => record.id === id)) { search.value = ''; period.value = 'all'; applyFilters(false); openRecord(id); focusRecord(records.find(record => record.id === id)); }
     else closeRecord();
