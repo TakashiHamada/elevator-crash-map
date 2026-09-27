@@ -1,20 +1,16 @@
 (() => {
   'use strict';
-  if (window.ARGStore.isDeleted()) return;
   const config = window.MAP_CONFIG;
   const records = window.ACCIDENTS;
   const map = document.querySelector('#map');
   const world = document.querySelector('#map-world');
   const detail = document.querySelector('#detail');
-  const search = document.querySelector('#search');
-  const period = document.querySelector('#period');
   const markers = new Map();
   let zoom = 1, offsetX = 0, offsetY = 0, baseScale = 1;
-  let selectedId = null, query = '', noticeTimer, lastTrigger;
+  let selectedId = null, noticeTimer, lastTrigger;
   let drag = null;
   const pointers = new Map();
   let pinchDistance = null;
-  const normalize = text => text.normalize('NFKC').toLowerCase().replace(/[\s\u3000]/g, '');
   const escapeHTML = text => String(text).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   const dateLabel = value => value.split('-').map((part,index) => `${Number(part)}${['年','月','日'][index]}`).join('');
 
@@ -29,7 +25,7 @@
     const marker = document.createElement('button');
     marker.className = 'marker';
     marker.style.left = `${record.x}%`; marker.style.top = `${record.y}%`;
-    marker.innerHTML = '<img src="assets/elevator-crash.png" alt="" draggable="false">';
+    marker.textContent = '!';
     marker.title = `${record.name}｜${dateLabel(record.date)}`;
     marker.setAttribute('aria-label', `${record.name}：${record.type}の記録を開く`);
     marker.setAttribute('aria-expanded', 'false');
@@ -40,7 +36,7 @@
   });
 
   function renderMap() {
-    if (!map.isConnected) return;
+    if (!map.isConnected || !baseScale) return;
     const scale = baseScale * zoom;
     offsetX = Math.min(0, Math.max(map.clientWidth - config.width * scale, offsetX));
     offsetY = Math.min(0, Math.max(map.clientHeight - config.height * scale, offsetY));
@@ -52,6 +48,7 @@
   }
   function resetMap() {
     zoom = 1;
+    if (!map.clientWidth || !map.clientHeight) { baseScale = 0; return; }
     baseScale = Math.max(map.clientWidth / config.width, map.clientHeight / config.height);
     offsetX = (map.clientWidth - config.width * baseScale) / 2;
     offsetY = (map.clientHeight - config.height * baseScale) / 2;
@@ -103,29 +100,9 @@
     });
     if (focus) { focusRecord(record); document.querySelector('#close-detail').focus({preventScroll:true}); }
   }
-  function applyFilters(announce = true) {
-    query = normalize(search.value);
-    const visible = records.filter(record => {
-      const year = Number(record.date.slice(0,4));
-      const matchesPeriod = period.value === 'all' || (period.value === '2020' && year >= 2020) || (period.value === '2010' && year >= 2010 && year < 2020) || (period.value === 'older' && year < 2010);
-      return matchesPeriod && normalize(`霧原市${record.address}${record.name}${record.id}`).includes(query);
-    });
-    const ids = new Set(visible.map(record => record.id));
-    markers.forEach((marker,id) => { marker.hidden = !ids.has(id); });
-    document.querySelector('#record-count').textContent = visible.length;
-    document.querySelector('#map-scope').textContent = query ? search.value.trim() : '霧原市';
-    if (selectedId && !ids.has(selectedId)) closeRecord();
-    if (announce) {
-      showNotice(visible.length ? `${visible.length}件の記録を表示しています` : '該当する記録はありません。町名・建物名・記録番号で検索できます。');
-      if (query && visible.length) focusRecord(visible[0]);
-    }
-  }
-  document.querySelector('#search-form').addEventListener('submit', event => { event.preventDefault(); applyFilters(); });
-  search.addEventListener('input', () => { if (!search.value) applyFilters(false); });
-  period.addEventListener('change', () => applyFilters());
   document.querySelector('#zoom-in').addEventListener('click', () => setZoom(zoom * config.zoomStep));
   document.querySelector('#zoom-out').addEventListener('click', () => setZoom(zoom / config.zoomStep));
-  document.querySelector('#reset-map').addEventListener('click', () => { closeRecord(); search.value = ''; period.value = 'all'; applyFilters(false); resetMap(); showNotice('霧原市全域を表示しています'); });
+  document.querySelector('#reset-map').addEventListener('click', () => { closeRecord(); resetMap(); showNotice('霧原市全域を表示しています'); });
   map.addEventListener('wheel', event => {
     if (event.target.closest('.detail')) return;
     event.preventDefault();
@@ -173,8 +150,7 @@
   const dialog = document.querySelector('#info-dialog');
   const pages = {
     about:'<h2>このサイトについて</h2><p>エレベーター事故マップは、霧原市内の昇降機事故を地図上に記録するアーカイブです。事故のあった場所と、当時の状況を閲覧できます。</p><p>本サイトはARG（代替現実ゲーム）のために制作されたフィクションです。霧原市、施設、事故、出典として記載された資料はすべて架空であり、実在する地域・人物・組織とは関係ありません。</p>',
-    guide:'<h2>地図の使い方</h2><ul><li>赤いエレベーターのアイコンを選ぶと、事故記録が開きます。</li><li>地図をドラッグして移動できます。＋／−、マウスホイール、または2本指のピンチ操作で拡大・縮小します。</li><li>町名・建物名・記録番号から検索できます。発生年でも絞り込めます。</li><li>⌖ ボタンで検索条件と表示範囲をリセットします。</li><li>地図にフォーカスすると矢印キーでも移動できます。Escで事故情報を閉じます。</li></ul>',
-    policy:'<h2>掲載情報について</h2><p>掲載されている事故、建物名、住所、資料・出典はすべて作品内の設定です。実際の安全情報や不動産情報としては使用できません。</p><p>投稿内容はこのブラウザー内にのみ保存され、外部には送信されません。実在する個人の情報は入力しないでください。位置情報の取得は行いません。地図と事故アイコンは本作品用に生成した画像を使用しています。</p>'
+    policy:'<h2>掲載情報について</h2><p>掲載されている事故、建物名、住所、資料・出典はすべて作品内の設定です。実際の安全情報や不動産情報としては使用できません。</p><p>情報提供と掲示板の進行はこのブラウザー内にのみ保存され、外部には送信されません。実在する個人の情報は入力しないでください。位置情報の取得は行いません。地図と事故アイコンは本作品用に生成した画像を使用しています。</p>'
   };
   document.querySelectorAll('[data-dialog]').forEach(button => button.addEventListener('click', () => { document.querySelector('#dialog-content').innerHTML = pages[button.dataset.dialog]; dialog.showModal(); }));
   document.querySelector('#dialog-close').addEventListener('click', () => dialog.close());
@@ -182,7 +158,9 @@
   dialog.addEventListener('click', event => { const bounds = dialog.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close(); });
   const mapResizeObserver = new ResizeObserver(() => {
     if (!map.isConnected) { mapResizeObserver.disconnect(); return; }
+    if (!map.clientWidth || !map.clientHeight) return;
     const oldScale = baseScale*zoom;
+    if (!oldScale) { resetMap(); return; }
     const centerX = (map.clientWidth/2-offsetX)/oldScale, centerY = (map.clientHeight/2-offsetY)/oldScale;
     baseScale = Math.max(map.clientWidth/config.width,map.clientHeight/config.height);
     offsetX = map.clientWidth/2-centerX*baseScale*zoom; offsetY = map.clientHeight/2-centerY*baseScale*zoom; renderMap();
@@ -191,9 +169,9 @@
   function readHash() {
     if (!map.isConnected) return;
     const id = new URLSearchParams(location.hash.slice(1)).get('record');
-    if (id && records.some(record => record.id === id)) { search.value = ''; period.value = 'all'; applyFilters(false); openRecord(id); focusRecord(records.find(record => record.id === id)); }
+    if (id && records.some(record => record.id === id)) { if (!map.clientWidth) document.querySelector('#tab-map').click(); if (!baseScale) resetMap(); openRecord(id); focusRecord(records.find(record => record.id === id)); }
     else closeRecord();
   }
   window.addEventListener('hashchange',readHash);
-  resetMap(); applyFilters(false); readHash();
+  resetMap(); readHash();
 })();

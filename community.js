@@ -1,167 +1,150 @@
 (() => {
   'use strict';
   const config = window.ARG_CONFIG;
-  const emptyState = () => ({published: [], reports: [], deleted: false});
+  const isAdmin = document.body.classList.contains('admin-page');
+  const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+  const emptyState = () => ({reports:[], posts:[], logins:[], hiddenLogIds:[]});
   function readState() {
-    const value = JSON.parse(localStorage.getItem(config.storageKey) || 'null');
-    if (!value) return emptyState();
-    if (!Array.isArray(value.published) || !Array.isArray(value.reports) || typeof value.deleted !== 'boolean') throw new Error('保存データを読み込めません');
+    const raw = localStorage.getItem(config.storageKey);
+    if (!raw) return emptyState();
+    const value = JSON.parse(raw);
+    if (!value || !['reports','posts','logins','hiddenLogIds'].every(key => Array.isArray(value[key]))) throw new Error('invalid state');
     return value;
   }
   let state;
-  let storageError = false;
-  try { state = readState(); } catch { state = emptyState(); storageError = true; }
-  window.ARGStore = {isDeleted: () => state.deleted};
-  const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
-  let deleting = false;
-  function showEnding() {
-    document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
-    document.title = 'このページは見つかりません';
-    document.body.className = 'ending-page';
-    document.body.innerHTML = '<main class="ending"><p class="eyebrow">404 / NOT FOUND</p><h1 tabindex="-1">このページは見つかりません</h1></main>';
-    document.querySelector('h1').focus();
-  }
-  if (state.deleted) { showEnding(); return; }
-  const dialog = document.querySelector('#community-dialog');
-  const content = document.querySelector('#community-content');
-  function showDrawer(html) {
-    content.innerHTML = html;
-    dialog.showModal();
-    dialog.scrollTop = 0;
-  }
-  dialog.querySelectorAll('[data-close-drawer]').forEach(button => button.addEventListener('click', () => dialog.close()));
-  dialog.addEventListener('click', event => {
-    const rect = dialog.getBoundingClientRect();
-    if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
-  });
-  function updateState(change, status) {
+  try { state = readState(); } catch { state = emptyState(); }
+  function saveState(change, status) {
     try {
       const next = readState();
-      if (next.deleted) { state = next; showEnding(); return false; }
       change(next);
       localStorage.setItem(config.storageKey, JSON.stringify(next));
       state = next;
-      storageError = false;
       return true;
     } catch {
-      status.textContent = '保存できませんでした。ブラウザーの保存設定や空き容量を確認して、もう一度お試しください。';
+      if (status) status.textContent = '保存できませんでした。ブラウザーの保存設定をご確認ください。';
       return false;
     }
-  }
-  const allHeld = () => [...window.HELD_POSTS, ...state.reports];
-  function publicPosts() {
-    const posts = new Map(allHeld().map(post => [post.id, post]));
-    return [...state.published.map(id => posts.get(id)).filter(Boolean), ...window.RUMORS].slice(0, config.topCount);
   }
   function renderBoard() {
     const list = document.querySelector('#rumor-list');
     if (!list) return;
-    list.innerHTML = publicPosts().map((post,index) => `<li><button class="rumor-button" data-rumor="${escapeHTML(post.id)}" aria-haspopup="dialog"><span class="rumor-number">${String(index+1).padStart(2,'0')}</span><span class="rumor-copy"><span class="rumor-date">${escapeHTML(post.date)} · 町の噂</span><strong>${escapeHTML(post.title)}</strong><span class="rumor-address">${escapeHTML(post.address)}</span></span><span class="rumor-arrow" aria-hidden="true">↗</span></button></li>`).join('');
+    const posts = [...state.posts.slice().reverse(), ...window.RUMORS];
+    list.innerHTML = posts.map((post, index) => `<li><article class="board-entry"><div class="board-entry-meta"><span>${index + 1} ：</span><strong>${escapeHTML(post.name)}</strong><time>${escapeHTML(post.date)}</time>${post.kind ? `<span class="board-kind">${escapeHTML(post.kind)}</span>` : ''}</div>${post.title ? `<h3>${escapeHTML(post.title)}</h3>` : ''}<p>${escapeHTML(post.body)}</p></article></li>`).join('');
   }
   function renderAdmin() {
-    const list = document.querySelector('#held-list');
-    if (!list) return;
-    const posts = allHeld();
-    document.querySelector('#held-count').textContent = `${posts.filter(post => !state.published.includes(post.id)).length}件`;
-    list.innerHTML = posts.map(post => {
-      const published = state.published.includes(post.id);
-      return `<article class="held-post"><div class="held-meta"><span class="tag">${published ? '公開済み' : '保留'}</span><span>${escapeHTML(post.id)} / ${escapeHTML(post.date)}</span></div><h3>${escapeHTML(post.title)}</h3><p class="held-address">${escapeHTML(post.address)}</p><p class="held-body">${escapeHTML(post.body)}</p><p class="hold-reason">保留理由：${escapeHTML(post.reason)}</p><button class="publish-button" data-publish="${escapeHTML(post.id)}" ${published ? 'disabled' : ''}>${published ? '表側に表示済み' : '表側に表示する'}</button></article>`;
-    }).join('');
+    const memo = document.querySelector('#memo-content');
+    if (!memo) return;
+    memo.innerHTML = config.memo.map((paragraph, index) => `<article><span>メモ ${String(index + 1).padStart(2, '0')}</span><p>${escapeHTML(paragraph)}</p></article>`).join('');
+    document.querySelector('#inbox-count').textContent = `${state.reports.length}件`;
+    document.querySelector('#inbox-list').innerHTML = state.reports.length ? state.reports.slice().reverse().map(report => `<article class="inbox-entry"><time>${escapeHTML(report.date)}</time><p>${escapeHTML(report.body)}</p></article>`).join('') : '<p class="empty-note">まだ情報は届いていません。</p>';
+    const history = [...state.logins.slice().reverse(), ...window.LOGIN_HISTORY].filter(entry => !state.hiddenLogIds.includes(entry.id));
+    document.querySelector('#history-count').textContent = `${history.length}件`;
+    document.querySelector('#history-list').innerHTML = history.map(entry => `<li><span class="history-date">${escapeHTML(entry.date)}</span><span>${escapeHTML(entry.device)}</span><span>${escapeHTML(entry.result)}</span><button type="button" data-delete-log="${escapeHTML(entry.id)}" aria-label="${escapeHTML(entry.date)} のログイン履歴を削除">削除</button></li>`).join('');
   }
-  renderBoard(); renderAdmin();
-  if (storageError) {
-    const status = document.querySelector('#report-status, #admin-status');
-    status.textContent = '保存データを読み込めませんでした。ブラウザーの保存設定をご確認ください。';
-  }
-  document.querySelector('#rumor-list')?.addEventListener('click', event => {
-    const button = event.target.closest('[data-rumor]');
-    if (!button) return;
-    const post = publicPosts().find(post => post.id === button.dataset.rumor);
-    if (post) showDrawer(`<p class="eyebrow">町の噂 / ${escapeHTML(post.date)}</p><h2 id="community-title">${escapeHTML(post.title)}</h2><p class="drawer-address">${escapeHTML(post.address)}</p><p class="drawer-body">${escapeHTML(post.body)}</p><p class="drawer-note">寄せられた情報であり、事実関係が確認された事故記録ではありません。</p>`);
-  });
-  document.querySelector('#administrator-link')?.addEventListener('click', event => {
-    event.preventDefault();
-    showDrawer(`<p class="eyebrow">この記録を集めている人</p><h2 id="community-title">管理者とは</h2><p class="drawer-body">${escapeHTML(config.administrator)}</p>`);
-  });
-  const reportForm = document.querySelector('#report-form');
-  if (reportForm) {
-    config.reportAddresses.forEach(address => {
-      const option = document.createElement('option');
-      option.value = address;
-      option.textContent = address;
-      reportForm.elements.address.append(option);
+  if (isAdmin) {
+    let authenticated = false;
+    try { authenticated = sessionStorage.getItem(config.sessionKey) === 'ok'; } catch { /* ログイン状態を使えない場合は拒否 */ }
+    if (!authenticated) { location.replace('index.html#login'); return; }
+    document.body.classList.add('authenticated');
+    renderAdmin();
+    document.querySelector('#logout').addEventListener('click', () => {
+      sessionStorage.removeItem(config.sessionKey);
+      location.assign('index.html');
     });
-  }
-  reportForm?.addEventListener('submit', event => {
-    event.preventDefault();
-    const addressInput = reportForm.elements.address;
-    const bodyInput = reportForm.elements.body;
-    addressInput.setCustomValidity(config.reportAddresses.includes(addressInput.value) ? '' : '住所を選択してください。');
-    if (!addressInput.reportValidity()) return;
-    bodyInput.setCustomValidity(bodyInput.value.trim() ? '' : '空白以外の文字を入力してください。');
-    if (!bodyInput.reportValidity()) return;
-    const status = document.querySelector('#report-status');
-    const report = {id:`report-${crypto.randomUUID()}`, title:'寄せられた情報', address:addressInput.value.trim(), body:bodyInput.value.trim(), date:new Date().toLocaleDateString('ja-JP').replaceAll('/','.'), reason:'新規投稿。管理者による確認待ち。'};
-    if (updateState(next => next.reports.push(report), status)) {
-      reportForm.reset();
-      status.textContent = '情報を受け付けました。管理者の確認後に掲載されます。';
+    document.querySelector('#history-list').addEventListener('click', event => {
+      const button = event.target.closest('[data-delete-log]');
+      if (!button) return;
+      const status = document.querySelector('#history-status');
+      if (saveState(next => { if (!next.hiddenLogIds.includes(button.dataset.deleteLog)) next.hiddenLogIds.push(button.dataset.deleteLog); }, status)) {
+        renderAdmin();
+        status.textContent = '履歴を削除しました。';
+      }
+    });
+  } else {
+    renderBoard();
+    const dialog = document.querySelector('#community-dialog');
+    const content = document.querySelector('#community-content');
+    const menu = document.querySelector('#mobile-menu');
+    const menuToggle = document.querySelector('#menu-toggle');
+    function closeMenu() { menu.hidden = true; menuToggle.setAttribute('aria-expanded', 'false'); }
+    function showDrawer(html) {
+      closeMenu();
+      content.innerHTML = html;
+      dialog.showModal();
+      dialog.scrollTop = 0;
     }
-  });
-  reportForm?.addEventListener('input', event => event.target.setCustomValidity?.(''));
-  let logoClicks = 0;
-  if (document.querySelector('.public-layout')) document.querySelector('.brand').addEventListener('click', event => {
-    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    logoClicks += 1;
-    if (logoClicks >= config.logoClicks) location.assign(config.adminPath);
-  });
-  document.querySelector('#held-list')?.addEventListener('click', event => {
-    const button = event.target.closest('[data-publish]');
-    if (!button) return;
-    const id = button.dataset.publish;
-    const status = document.querySelector('#admin-status');
-    if (updateState(next => { if (!next.published.includes(id)) next.published.unshift(id); }, status)) {
-      renderAdmin();
-      const replacement = [...document.querySelectorAll('[data-publish]')].find(item => item.dataset.publish === id);
-      const article = replacement.closest('article');
-      article.tabIndex = -1; article.focus({preventScroll:true});
-      status.textContent = '公開しました。町の噂の先頭に表示されます。';
+    dialog.querySelectorAll('[data-close-drawer]').forEach(button => button.addEventListener('click', () => dialog.close()));
+    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+    menuToggle.addEventListener('click', () => {
+      menu.hidden = !menu.hidden;
+      menuToggle.setAttribute('aria-expanded', String(!menu.hidden));
+    });
+    document.addEventListener('click', event => { if (!event.target.closest('.mobile-nav')) closeMenu(); });
+    document.querySelectorAll('[data-dialog]').forEach(button => button.addEventListener('click', closeMenu));
+    document.querySelectorAll('[data-admin-about]').forEach(button => button.addEventListener('click', () => showDrawer(`<h2 id="community-title">管理人について</h2><p class="drawer-body">${escapeHTML(config.administrator)}</p>`)));
+    document.querySelectorAll('[data-developer-info]').forEach(button => button.addEventListener('click', () => showDrawer(`<h2 id="community-title">開発者向け情報</h2><p>プロトタイプ確認用の設定です。公開版では認証をサーバー側へ移してください。</p><h3>反応するキーワード</h3><ul>${config.keywordRules.map(rule => `<li>${escapeHTML(rule.keywords.join(' / '))} → ${escapeHTML(rule.kind)}「${escapeHTML(rule.title)}」</li>`).join('')}</ul><h3>管理人ログイン</h3><dl class="developer-credentials"><dt>ユーザー名</dt><dd><code>${escapeHTML(config.username)}</code></dd><dt>パスワード</dt><dd><code>${escapeHTML(config.password)}</code></dd></dl><p>情報提供と削除状態は、このブラウザーの保存領域に記録されます。</p>`)));
+    const loginDialog = document.querySelector('#login-dialog');
+    const loginForm = document.querySelector('#login-form');
+    function openLogin() {
+      closeMenu();
+      document.querySelector('#login-error').textContent = '';
+      loginForm.reset();
+      loginDialog.showModal();
+      document.querySelector('#login-user').focus();
     }
-  });
-  document.querySelector('#delete-site')?.addEventListener('click', () => {
-    showDrawer('<p class="eyebrow">アーカイブの終了</p><h2 id="community-title">このサイトを削除する</h2><p>実行すると、このサイトの記録は閲覧できなくなります。</p><form id="delete-form"><label for="delete-password">管理者パスワード</label><input id="delete-password" type="password" required autocomplete="off" placeholder="パスワードを入力"><p id="password-error" role="alert"></p><button class="danger-button" type="submit">削除を実行する</button></form>');
-    document.querySelector('#delete-password').focus();
-    document.querySelector('#delete-form').addEventListener('submit', event => {
+    document.querySelectorAll('[data-admin-login]').forEach(button => button.addEventListener('click', openLogin));
+    document.querySelector('[data-close-login]').addEventListener('click', () => loginDialog.close());
+    loginDialog.addEventListener('click', event => { if (event.target === loginDialog) loginDialog.close(); });
+    loginForm.addEventListener('submit', event => {
       event.preventDefault();
-      const error = document.querySelector('#password-error');
-      if (document.querySelector('#delete-password').value !== config.deletionPassword) {
-        error.textContent = 'パスワードが正しくありません。';
-        document.querySelector('#delete-password').select();
+      const error = document.querySelector('#login-error');
+      if (loginForm.elements.username.value !== config.username || loginForm.elements.password.value !== config.password) {
+        error.textContent = 'ユーザー名またはパスワードが違います。';
+        loginForm.elements.password.select();
         return;
       }
-      // 保存に成功した場合のみ演出へ進み、途中で閉じても終了状態を維持します。
-      if (!updateState(next => { next.deleted = true; }, error)) return;
-      deleting = true;
-      dialog.close();
-      document.body.className = 'ending-page';
-      document.body.innerHTML = '<main class="ending"><p class="eyebrow">ARCHIVE / ERASING</p><h1 tabindex="-1">記録を消去しています</h1><progress id="erase-progress" max="100" value="0" aria-label="サイトの消去進捗"></progress><p id="erase-label" role="status">事故記録を消去しています…</p></main>';
-      document.querySelector('h1').focus();
-      const start = performance.now();
-      function animate(now) {
-        const percent = Math.min(100, (now-start)/config.deletionDuration*100);
-        document.querySelector('#erase-progress').value = percent;
-        document.querySelector('#erase-label').textContent = percent < 35 ? '事故記録を消去しています…' : percent < 75 ? '投稿と保留記録を消去しています…' : 'アーカイブを終了しています…';
-        if (percent < 100) requestAnimationFrame(animate);
-        else { deleting = false; showEnding(); }
-      }
-      requestAnimationFrame(animate);
+      try {
+        sessionStorage.setItem(config.sessionKey, 'ok');
+        const now = new Date();
+        const entry = {id:`login-${crypto.randomUUID()}`, date:now.toLocaleString('ja-JP'), device:'このブラウザー', result:'ログイン成功'};
+        if (!saveState(next => next.logins.push(entry), error)) { sessionStorage.removeItem(config.sessionKey); return; }
+        location.assign(config.adminPath);
+      } catch { error.textContent = 'ログイン状態を保存できませんでした。'; }
     });
-  });
+    const form = document.querySelector('#report-form');
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const input = form.elements.body;
+      const body = input.value.trim();
+      input.setCustomValidity(body ? '' : '本文を入力してください。');
+      if (!input.reportValidity()) return;
+      const status = document.querySelector('#report-status');
+      const normalized = body.normalize('NFKC').toLowerCase();
+      const rule = config.keywordRules.find(item => item.keywords.some(keyword => normalized.includes(keyword.normalize('NFKC').toLowerCase())));
+      const now = new Date().toLocaleString('ja-JP');
+      const report = {id:`report-${crypto.randomUUID()}`, date:now, body};
+      const post = rule ? {id:`post-${crypto.randomUUID()}`, date:now, name:'管理人', kind:rule.kind, title:rule.title, body:rule.body} : null;
+      if (!saveState(next => { next.reports.push(report); if (post) next.posts.push(post); }, status)) return;
+      form.reset();
+      renderBoard();
+      status.textContent = rule ? '情報を受け付けました。管理人の投稿が掲示板の先頭に追加されました。' : '情報を受け付けました。管理人が確認します。';
+    });
+    form.addEventListener('input', () => form.elements.body.setCustomValidity(''));
+    function switchTab(view) {
+      document.body.dataset.mobileView = view;
+      document.querySelector('#tab-board').setAttribute('aria-selected', String(view === 'board'));
+      document.querySelector('#tab-map').setAttribute('aria-selected', String(view === 'map'));
+      closeMenu();
+      if (view === 'map') window.dispatchEvent(new Event('resize'));
+    }
+    document.querySelector('#tab-board').addEventListener('click', () => switchTab('board'));
+    document.querySelector('#tab-map').addEventListener('click', () => switchTab('map'));
+    switchTab(location.hash.startsWith('#record=') ? 'map' : 'board');
+    if (location.hash === '#login') { history.replaceState(null, '', location.pathname); openLogin(); }
+  }
   window.addEventListener('storage', event => {
     if (event.key !== config.storageKey && event.key !== null) return;
     try { state = readState(); } catch { return; }
-    if (state.deleted) { if (!deleting) showEnding(); }
-    else if (document.querySelector('.ending')) location.reload();
-    else { renderBoard(); renderAdmin(); }
+    if (isAdmin) renderAdmin(); else renderBoard();
   });
 })();
