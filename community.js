@@ -1,150 +1,97 @@
-(() => {
-  'use strict';
-  const config = window.ARG_CONFIG;
-  const isAdmin = document.body.classList.contains('admin-page');
-  const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
-  const emptyState = () => ({reports:[], posts:[], logins:[], hiddenLogIds:[]});
-  function readState() {
-    const raw = localStorage.getItem(config.storageKey);
-    if (!raw) return emptyState();
-    const value = JSON.parse(raw);
-    if (!value || !['reports','posts','logins','hiddenLogIds'].every(key => Array.isArray(value[key]))) throw new Error('invalid state');
-    return value;
-  }
-  let state;
-  try { state = readState(); } catch { state = emptyState(); }
-  function saveState(change, status) {
-    try {
-      const next = readState();
-      change(next);
-      localStorage.setItem(config.storageKey, JSON.stringify(next));
-      state = next;
-      return true;
-    } catch {
-      if (status) status.textContent = '保存できませんでした。ブラウザーの保存設定をご確認ください。';
-      return false;
-    }
-  }
-  function renderBoard() {
-    const list = document.querySelector('#rumor-list');
-    if (!list) return;
-    const posts = [...state.posts.slice().reverse(), ...window.RUMORS];
-    list.innerHTML = posts.map((post, index) => `<li><article class="board-entry"><div class="board-entry-meta"><span>${index + 1} ：</span><strong>${escapeHTML(post.name)}</strong><time>${escapeHTML(post.date)}</time>${post.kind ? `<span class="board-kind">${escapeHTML(post.kind)}</span>` : ''}</div>${post.title ? `<h3>${escapeHTML(post.title)}</h3>` : ''}<p>${escapeHTML(post.body)}</p></article></li>`).join('');
-  }
-  function renderAdmin() {
-    const memo = document.querySelector('#memo-content');
-    if (!memo) return;
-    memo.innerHTML = config.memo.map((paragraph, index) => `<article><span>メモ ${String(index + 1).padStart(2, '0')}</span><p>${escapeHTML(paragraph)}</p></article>`).join('');
-    document.querySelector('#inbox-count').textContent = `${state.reports.length}件`;
-    document.querySelector('#inbox-list').innerHTML = state.reports.length ? state.reports.slice().reverse().map(report => `<article class="inbox-entry"><time>${escapeHTML(report.date)}</time><p>${escapeHTML(report.body)}</p></article>`).join('') : '<p class="empty-note">まだ情報は届いていません。</p>';
-    const history = [...state.logins.slice().reverse(), ...window.LOGIN_HISTORY].filter(entry => !state.hiddenLogIds.includes(entry.id));
-    document.querySelector('#history-count').textContent = `${history.length}件`;
-    document.querySelector('#history-list').innerHTML = history.map(entry => `<li><span class="history-date">${escapeHTML(entry.date)}</span><span>${escapeHTML(entry.device)}</span><span>${escapeHTML(entry.result)}</span><button type="button" data-delete-log="${escapeHTML(entry.id)}" aria-label="${escapeHTML(entry.date)} のログイン履歴を削除">削除</button></li>`).join('');
-  }
-  if (isAdmin) {
-    let authenticated = false;
-    try { authenticated = sessionStorage.getItem(config.sessionKey) === 'ok'; } catch { /* ログイン状態を使えない場合は拒否 */ }
-    if (!authenticated) { location.replace('index.html#login'); return; }
-    document.body.classList.add('authenticated');
-    renderAdmin();
-    document.querySelector('#logout').addEventListener('click', () => {
-      sessionStorage.removeItem(config.sessionKey);
-      location.assign('index.html');
-    });
-    document.querySelector('#history-list').addEventListener('click', event => {
-      const button = event.target.closest('[data-delete-log]');
-      if (!button) return;
-      const status = document.querySelector('#history-status');
-      if (saveState(next => { if (!next.hiddenLogIds.includes(button.dataset.deleteLog)) next.hiddenLogIds.push(button.dataset.deleteLog); }, status)) {
-        renderAdmin();
-        status.textContent = '履歴を削除しました。';
-      }
-    });
-  } else {
-    renderBoard();
-    const dialog = document.querySelector('#community-dialog');
-    const content = document.querySelector('#community-content');
-    const menu = document.querySelector('#mobile-menu');
-    const menuToggle = document.querySelector('#menu-toggle');
-    function closeMenu() { menu.hidden = true; menuToggle.setAttribute('aria-expanded', 'false'); }
-    function showDrawer(html) {
-      closeMenu();
-      content.innerHTML = html;
-      dialog.showModal();
-      dialog.scrollTop = 0;
-    }
-    dialog.querySelectorAll('[data-close-drawer]').forEach(button => button.addEventListener('click', () => dialog.close()));
-    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
-    menuToggle.addEventListener('click', () => {
-      menu.hidden = !menu.hidden;
-      menuToggle.setAttribute('aria-expanded', String(!menu.hidden));
-    });
-    document.addEventListener('click', event => { if (!event.target.closest('.mobile-nav')) closeMenu(); });
-    document.querySelectorAll('[data-dialog]').forEach(button => button.addEventListener('click', closeMenu));
-    document.querySelectorAll('[data-admin-about]').forEach(button => button.addEventListener('click', () => showDrawer(`<h2 id="community-title">管理人について</h2><p class="drawer-body">${escapeHTML(config.administrator)}</p>`)));
-    document.querySelectorAll('[data-developer-info]').forEach(button => button.addEventListener('click', () => showDrawer(`<h2 id="community-title">開発者向け情報</h2><p>プロトタイプ確認用の設定です。公開版では認証をサーバー側へ移してください。</p><h3>反応するキーワード</h3><ul>${config.keywordRules.map(rule => `<li>${escapeHTML(rule.keywords.join(' / '))} → ${escapeHTML(rule.kind)}「${escapeHTML(rule.title)}」</li>`).join('')}</ul><h3>管理人ログイン</h3><dl class="developer-credentials"><dt>ユーザー名</dt><dd><code>${escapeHTML(config.username)}</code></dd><dt>パスワード</dt><dd><code>${escapeHTML(config.password)}</code></dd></dl><p>情報提供と削除状態は、このブラウザーの保存領域に記録されます。</p>`)));
-    const loginDialog = document.querySelector('#login-dialog');
-    const loginForm = document.querySelector('#login-form');
-    function openLogin() {
-      closeMenu();
-      document.querySelector('#login-error').textContent = '';
-      loginForm.reset();
-      loginDialog.showModal();
-      document.querySelector('#login-user').focus();
-    }
-    document.querySelectorAll('[data-admin-login]').forEach(button => button.addEventListener('click', openLogin));
-    document.querySelector('[data-close-login]').addEventListener('click', () => loginDialog.close());
-    loginDialog.addEventListener('click', event => { if (event.target === loginDialog) loginDialog.close(); });
-    loginForm.addEventListener('submit', event => {
-      event.preventDefault();
-      const error = document.querySelector('#login-error');
-      if (loginForm.elements.username.value !== config.username || loginForm.elements.password.value !== config.password) {
-        error.textContent = 'ユーザー名またはパスワードが違います。';
-        loginForm.elements.password.select();
-        return;
-      }
-      try {
-        sessionStorage.setItem(config.sessionKey, 'ok');
-        const now = new Date();
-        const entry = {id:`login-${crypto.randomUUID()}`, date:now.toLocaleString('ja-JP'), device:'このブラウザー', result:'ログイン成功'};
-        if (!saveState(next => next.logins.push(entry), error)) { sessionStorage.removeItem(config.sessionKey); return; }
-        location.assign(config.adminPath);
-      } catch { error.textContent = 'ログイン状態を保存できませんでした。'; }
-    });
-    const form = document.querySelector('#report-form');
-    form.addEventListener('submit', event => {
-      event.preventDefault();
-      const input = form.elements.body;
-      const body = input.value.trim();
-      input.setCustomValidity(body ? '' : '本文を入力してください。');
-      if (!input.reportValidity()) return;
-      const status = document.querySelector('#report-status');
-      const normalized = body.normalize('NFKC').toLowerCase();
-      const rule = config.keywordRules.find(item => item.keywords.some(keyword => normalized.includes(keyword.normalize('NFKC').toLowerCase())));
-      const now = new Date().toLocaleString('ja-JP');
-      const report = {id:`report-${crypto.randomUUID()}`, date:now, body};
-      const post = rule ? {id:`post-${crypto.randomUUID()}`, date:now, name:'管理人', kind:rule.kind, title:rule.title, body:rule.body} : null;
-      if (!saveState(next => { next.reports.push(report); if (post) next.posts.push(post); }, status)) return;
-      form.reset();
-      renderBoard();
-      status.textContent = rule ? '情報を受け付けました。管理人の投稿が掲示板の先頭に追加されました。' : '情報を受け付けました。管理人が確認します。';
-    });
-    form.addEventListener('input', () => form.elements.body.setCustomValidity(''));
-    function switchTab(view) {
-      document.body.dataset.mobileView = view;
-      document.querySelector('#tab-board').setAttribute('aria-selected', String(view === 'board'));
-      document.querySelector('#tab-map').setAttribute('aria-selected', String(view === 'map'));
-      closeMenu();
-      if (view === 'map') window.dispatchEvent(new Event('resize'));
-    }
-    document.querySelector('#tab-board').addEventListener('click', () => switchTab('board'));
-    document.querySelector('#tab-map').addEventListener('click', () => switchTab('map'));
-    switchTab(location.hash.startsWith('#record=') ? 'map' : 'board');
-    if (location.hash === '#login') { history.replaceState(null, '', location.pathname); openLogin(); }
-  }
-  window.addEventListener('storage', event => {
-    if (event.key !== config.storageKey && event.key !== null) return;
-    try { state = readState(); } catch { return; }
-    if (isAdmin) renderAdmin(); else renderBoard();
-  });
-})();
+import { CONFIG, PROFILE, NEWS, NEWS_BODY } from './board-data.js';
+import { BUILDINGS, TOWNS, addressOf } from './data.js';
+import { localDate } from './game-state.js';
+
+export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/gu, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+export const dateLabel = value => value.replace(/^(\d{4})-(\d{2})-(\d{2})$/u, '$1年$2月$3日');
+export function timeLabel(timestamp) {
+  return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(timestamp));
+}
+export function makeRoute(base, view, extra = {}) {
+  const params = new URLSearchParams({ view, ...extra });
+  return base + '?' + params;
+}
+export function articleHTML(state, compact = false) {
+  const published = state.restoredAt ?? state.startedAt;
+  return `<article class="news-article${compact ? ' news-article--quoted' : ''}">
+    <div class="article-byline"><span>${NEWS.publisher}</span><time>${dateLabel(localDate(published))} ${timeLabel(published)}</time></div>
+    <h3>${NEWS.title}</h3>
+    ${NEWS.paragraphs.map(text => `<p>${text}</p>`).join('')}
+    <div class="article-bottom"><span>社会／霧原市</span><button type="button" data-action="copy-news">記事本文をコピー</button><span class="copy-result" role="status"></span></div>
+  </article>`;
+}
+export function threadListHTML(threads, base, state) {
+  return `<div class="board-introduction"><h2>霧原市 市民掲示板</h2><p>エレベーターのこと、町で聞いた話など。ご自由にどうぞ。</p></div>
+    <p class="board-rules">個人情報の書き込み、無断転載はおやめください。</p>
+    <div class="thread-table"><div class="thread-table-head"><span>スレッド一覧</span><span>書き込み</span></div>
+    ${threads.map(thread => `<a class="thread-row${thread.dynamic ? ' thread-row--new' : ''}" href="${makeRoute(base, 'board', { thread: thread.id })}">
+      <span><span class="thread-index">${thread.dynamic ? '新' : '›'}</span><strong>${escapeHTML(thread.title)}</strong><small>${thread.dynamic ? dateLabel(localDate(state.restoredAt)) + '　更新' : dateLabel(thread.date)}</small></span><span class="thread-replies">${thread.posts.length}</span></a>`).join('')}
+    </div><p class="board-readonly">${base.includes('/archive/') ? '保存された掲示板です。新しい書き込みはできません。' : '掲示板への新規書き込みは、現在受け付けていません。事故情報は「事故情報の投稿」からお寄せください。'}</p>`;
+}
+export function postHTML(post, index, thread, state) {
+  const day = thread.dynamic ? localDate(state.restoredAt) : thread.date;
+  const clock = thread.dynamic ? timeLabel((thread.id === 'revival' ? state.restoredAt + CONFIG.newsDelay : state.publishedAt) + index * 900) : '21:' + String(10 + index * 2).padStart(2, '0');
+  return `<article class="board-post" id="post-${index + 1}">
+    <div class="post-meta"><span class="post-number">${index + 1}</span> ： <strong class="${post.name === '管理人' ? 'post-admin' : ''}">${escapeHTML(post.name)}</strong> <time>${escapeHTML(day.replaceAll('-', '/'))} ${clock}</time><span class="post-id">ID:${(thread.id.slice(0, 3) + (index * 139 + 42).toString(36)).padEnd(8, '0')}</span></div>
+    ${post.special === 'news' ? articleHTML(state, true) : `<p>${escapeHTML(post.body)}</p>`}
+  </article>`;
+}
+export function threadHTML(thread, base, state) {
+  return `<div class="thread-nav"><a href="${makeRoute(base, 'board')}">← スレッド一覧</a><span>${thread.posts.length}件の書き込み</span></div>
+    <h2 class="thread-title">${escapeHTML(thread.title)}</h2>
+    <div class="thread-posts" data-thread-posts="${thread.id}">${thread.posts.map((post, index) => postHTML(post, index, thread, state)).join('')}</div>
+    <div class="thread-bottom"><a href="${makeRoute(base, 'board')}">スレッド一覧へ戻る</a><span>書き込みは受け付けていません。</span></div>`;
+}
+export function profileHTML(snapshot) {
+  return `<div class="profile-heading"><span class="profile-avatar" aria-hidden="true">管</span><div><p>三栖田えれ(β)</p><h2 id="modal-title">管理人について</h2></div></div>
+    <p class="preserve-lines">${escapeHTML(snapshot === 'oldest' ? '霧原市出身・在住。\n町内のエレベーター事故について、個人で情報を集めています。' : PROFILE.common)}</p>
+    ${snapshot === 'middle' ? `<dl class="profile-facts">${PROFILE.facts.map(([key, value]) => `<div><dt>${key}</dt><dd>${value}</dd></div>`).join('')}</dl>` : ''}
+    ${snapshot === 'latest' || snapshot === 'live' ? `<p class="profile-edited">${PROFILE.edited}</p>` : ''}`;
+}
+export function reportHTML() {
+  return `<h2 id="modal-title">事故情報の投稿</h2><p class="form-intro">事故のあった場所と、事故を確認できるニュース記事をお知らせください。</p>
+    <form id="incident-form" class="incident-form">
+      <fieldset><legend>事故のあった場所</legend><div class="address-fields">
+        <label>地名<select name="town" required><option value="">地名を選択</option>${TOWNS.map(name => `<option>${name}</option>`).join('')}</select></label>
+        <label>丁目<select name="chome" required><option value="">選択</option>${[1, 2, 3].map(value => `<option value="${value}">${value}丁目</option>`).join('')}</select></label>
+        <label>番地<select name="lot" required><option value="">選択</option>${Array.from({ length: 12 }, (_, index) => `<option value="${index + 1}">${index + 1}番地</option>`).join('')}</select></label>
+      </div></fieldset>
+      <label>情報の出典<textarea name="source" rows="6" maxlength="5000" required placeholder="ニュース記事のタイトル、または記事本文を貼り付けてください"></textarea></label>
+      <p class="form-note">投稿内容を確認後、地図に掲載します。一部の地点は即時掲載に対応しています。</p>
+      <p id="incident-status" class="form-status" role="status"></p>
+      <button class="button button--primary" type="submit">事故情報を投稿する</button>
+    </form>`;
+}
+export function mapHTML(records, base, published, sightings = []) {
+  return `<div class="map-heading"><div><p class="section-label">霧原市／事故記録</p><h2>エレベーター事故マップ</h2></div><span class="record-total"><strong>${records.length + (published ? 1 : 0)}</strong> 件</span></div>
+    <div class="map-stage" id="map-stage" tabindex="0" role="region" aria-label="霧原市の地図。矢印キーで移動、プラス・マイナスで拡大縮小できます。">
+      <div class="map-world" id="map-world"></div>
+      <div class="map-location"><span>霧原市</span><small>Kirihara</small></div>
+      <div class="map-controls"><button type="button" data-map-action="in" aria-label="地図を拡大">＋</button><button type="button" data-map-action="out" aria-label="地図を縮小">−</button><button type="button" data-map-action="reset" aria-label="市全域を表示">⌖</button></div>
+      <div class="map-north" aria-hidden="true">N<span>↑</span></div>
+      <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${records.length + (published ? 1 : 0)}</button><button type="button" data-map-layer="sightings" aria-pressed="true" ${sightings.length ? '' : 'disabled'}><i class="legend-sighting" aria-hidden="true">目</i> 目撃情報 ${sightings.length}</button></div>
+      <div class="map-attribution">地図・施設情報：三栖田えれ(β)　<span id="map-scale">500 m</span></div>
+      <aside id="map-detail" class="map-detail" aria-labelledby="detail-title" hidden></aside>
+    </div>
+    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。拡大すると施設名と詳しい番地を確認できます。</p><button class="text-link" data-action="report">事故情報の投稿 →</button></div>
+    <details class="facility-index"><summary>地図の施設を一覧で見る</summary><div>${BUILDINGS.map(place => `<a href="${makeRoute(base, 'map', { building: place.id })}"><span>${place.name}</span><small>${addressOf(place)}</small></a>`).join('')}</div></details>`;
+}
+export function postingHelpHTML(isArchive) {
+  return `<div class="document-page"><p class="section-label">ご利用案内</p><h2>投稿方法</h2>
+    <p>町内のエレベーター事故について、情報をお持ちの方はご協力ください。</p>
+    <h3>1. 事故のあった場所を確認する</h3><p>地図で所在地を確認し、投稿画面で「地名」「丁目」「番地」の正しい組み合わせを選んでください。建物名を押すと、所在地と施設情報が表示されます。</p>
+    <h3>2. ニュース記事を添える</h3><p>情報の出典として、事故を伝えるニュース記事のタイトル、または記事本文を貼り付けてください。出典の分からない情報は掲載できません。</p>
+    <h3>3. 管理人による確認</h3><p>確認できた情報を地図に掲載します。一部の地点は、投稿を即時反映するよう設定しています。</p>
+    <p class="document-note">個人の名前や連絡先など、事故と関係のない個人情報は入力しないでください。</p>
+    ${isArchive ? '<p class="archive-warning">このページはアーカイブです。投稿機能は利用できません。</p>' : '<button class="button button--primary" data-action="report">事故情報を投稿する</button>'}</div>`;
+}
+export function latestHTML(snapshot, date, records) {
+  return `<div class="document-page"><p class="section-label">更新履歴</p><h2>新着情報</h2><dl class="updates">
+    <div><dt>${dateLabel(date)}</dt><dd>${snapshot === 'live' ? 'サイトを復元しました。' : snapshot === 'latest' ? '掲載情報を更新しました。管理人プロフィールの一部を修正しました。' : snapshot === 'middle' ? '市民掲示板を更新しました。情報をお寄せくださった皆さま、ありがとうございます。' : '「三栖田えれ(β)」を開設しました。エレベーター事故の情報を集めています。'}</dd></div>
+    ${records.slice(0, 5).map(item => `<div><dt>${dateLabel(item.date)}</dt><dd>事故記録 ${item.id} を掲載しました。</dd></div>`).join('')}
+    </dl><p>情報の訂正・追加は「事故情報の投稿」からお寄せください。</p></div>`;
+}
+export function archivedNewsHTML(records, base) {
+  return `<div class="document-page"><p class="section-label">町内の事故報道</p><h2>ニュース</h2><p>エレベーター事故に関する報道を記録しています。</p><div class="news-index">${records.map(record => `<a href="${makeRoute(base, 'map', { building: record.buildingId })}"><time>${dateLabel(record.date)}</time><strong>${BUILDINGS.find(item => item.id === record.buildingId).name}で${record.type}</strong><small>${record.source}</small></a>`).join('')}</div></div>`;
+}
+export function newsClipboardText() { return NEWS_BODY; }

@@ -1,0 +1,15 @@
+{
+  "name": "misuta-ere",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ミスターエレベーター番外編WebARG 三栖田えれ",
+  "scripts": {
+    "start": "python3 -m http.server 8000 --bind 127.0.0.1",
+    "check": "node --check app.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

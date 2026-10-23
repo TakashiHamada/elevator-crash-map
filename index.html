@@ -3,47 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#efefef">
-  <meta name="description" content="霧原市のエレベーター事故の記録を地図から閲覧できます。架空の都市を舞台とするARG作品です。">
-  <title>エレベーター事故マップ</title>
+  <meta name="theme-color" content="#f5f4ee">
+  <meta name="description" content="架空の町のエレベーター事故をたどる、ミスターエレベーター番外編WebARG。PC・スマートフォンで遊べる約30分の謎解きゲーム。">
+  <title>三栖田えれ(β)</title>
   <link rel="icon" href="assets/elevator-crash.png">
   <link rel="stylesheet" href="style.css">
-  <script src="data.js" defer></script>
-  <script src="board-data.js" defer></script>
-  <script src="community.js" defer></script>
-  <script src="app.js" defer></script>
+  <script src="app.js" type="module"></script>
 </head>
 <body>
-  <header class="site-header">
-    <a class="brand" href="index.html" aria-label="エレベーター事故マップ ホーム">
-      <div><h1>エレベーター事故マップ</h1><p>霧原市 昇降機事故記録アーカイブ</p></div>
-    </a>
-    <nav aria-label="サイト案内"><button data-dialog="about">このページについて</button><button data-admin-about>管理人について</button><button data-admin-login>🔒 管理人ページ</button><button data-developer-info>開発者向け情報</button></nav>
-  </header>
-  <nav class="mobile-nav" aria-label="画面切り替え"><button id="tab-board" class="mobile-tab" type="button" aria-controls="board-panel" aria-selected="true">掲示板</button><button id="tab-map" class="mobile-tab" type="button" aria-controls="map-panel" aria-selected="false">マップ</button><button id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="メニューを開く">☰</button><div id="mobile-menu" class="mobile-menu" hidden><button data-dialog="about">このページについて</button><button data-admin-about>管理人について</button><button data-admin-login>🔒 管理人ページ</button><button data-developer-info>開発者向け情報</button></div></nav>
-  <main class="public-layout">
-    <section id="board-panel" class="board" aria-labelledby="board-title">
-      <div class="board-heading"><h2 id="board-title">霧原市・昇降機の噂</h2></div>
-      <div class="board-posts"><ol id="rumor-list" class="rumor-list"></ol>
-        <section class="report-section" aria-labelledby="report-title"><h3 id="report-title">情報提供</h3><p>管理人宛てに送信されます。送信した文章は掲示板に直接表示されません。</p><form id="report-form"><label for="report-body">本文</label><textarea id="report-body" name="body" required maxlength="3000" rows="3" placeholder="知っていることを書いてください"></textarea><button class="primary-button" type="submit">管理人に送信</button><p id="report-status" role="status"></p></form></section>
-      </div>
-    </section>
-    <div id="map-panel" class="map-column">
-    <section id="map" class="map" tabindex="0" aria-label="霧原市の事故地図。矢印キーで移動、プラスとマイナスで拡大縮小できます。">
-      <div id="map-world" class="map-world"><img class="map-image" src="assets/kirihara-map.png" alt="架空の霧原市の道路地図" draggable="false"><div id="labels"></div><div id="markers"></div></div>
-      <div class="map-caption"><span class="live-dot"></span><span>事故記録</span><strong id="record-count">18</strong><span>件</span><span class="caption-divider">|</span><span id="map-scope">霧原市</span></div>
-      <div class="map-tools"><div class="zoom-group"><button id="zoom-in" aria-label="地図を拡大" title="拡大">＋</button><button id="zoom-out" aria-label="地図を縮小" title="縮小">−</button></div><button id="reset-map" class="reset-map" aria-label="霧原市全域に戻す" title="霧原市全域に戻す">⌖</button></div>
-      <div class="compass" aria-hidden="true"><span>N</span><i></i></div>
-      <aside id="detail" class="detail" aria-labelledby="detail-title" hidden></aside>
-      <div class="map-legend"><span class="legend-symbol" aria-hidden="true">!</span><span>事故記録を開く</span></div>
-      <div class="map-credit"><span id="scale" class="scale">500 m</span><span>地図・記録 © 霧原市昇降機事故アーカイブ</span></div>
-      <div id="notice" role="status" class="notice" hidden></div>
-    </section>
-    </div>
-  </main>
-  <footer><span>© 2026 エレベーター事故マップ</span><span class="footer-note">本サイトの地名・建物・事故はすべて架空です。</span><button data-dialog="policy">掲載情報について</button></footer>
-  <dialog id="info-dialog"><button id="dialog-close" class="close-button" aria-label="閉じる">×</button><div id="dialog-content"></div><button id="dialog-done" class="dialog-done">閉じる</button></dialog>
-  <dialog id="login-dialog" aria-labelledby="login-title"><button class="close-button" data-close-login aria-label="閉じる">×</button><h2 id="login-title">管理人ページ</h2><form id="login-form"><label for="login-user">ユーザー名</label><input id="login-user" name="username" autocomplete="username" required><label for="login-password">パスワード</label><input id="login-password" name="password" type="password" autocomplete="current-password" required><p id="login-error" role="alert"></p><button class="primary-button" type="submit">ログイン</button></form></dialog>
-  <dialog id="community-dialog" class="drawer" aria-labelledby="community-title"><button class="close-button" data-close-drawer aria-label="閉じる">×</button><div id="community-content"></div><button class="dialog-done" data-close-drawer>閉じる</button></dialog>
+  <div id="app"><p class="initial-loading">三栖田えれ(β) を読み込んでいます。</p></div>
+  <noscript><p class="noscript-message">このゲームを遊ぶにはJavaScriptを有効にしてください。</p></noscript>
+  <dialog id="site-dialog" aria-labelledby="modal-title">
+    <button class="dialog-close" type="button" data-action="dismiss" aria-label="閉じる">×</button>
+    <div id="dialog-content"></div>
+    <div class="dialog-bottom"><button class="text-link" type="button" data-action="dismiss">閉じる</button></div>
+  </dialog>
+  <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
 </body>
 </html>
