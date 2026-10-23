@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, access } from 'node:fs/promises';
-import { CONFIG, NEWS, NEWS_BODY, THREADS, ADMIN_MEMO } from '../board-data.js';
+import { CONFIG, NEWS, NEWS_BODY, THREADS, ADMIN_MEMO, FLOOD_THREAD } from '../board-data.js';
 import { ACCIDENTS, BUILDINGS, TARGET_BUILDING, TARGET_BUILDING_ID, addressOf, recordsForSnapshot } from '../data.js';
 import { createState, isValidState, localDate, dateShift, snapshotDates, newsIsVisible, normalizeText, isCorrectPassword, matchesArchiveQuery, validateReport, transition, viewerCount, visibleThreads, parseRoute, resolveRoute, createStore } from '../game-state.js';
-import { profileHTML, threadHTML, mapHTML, reportHTML, escapeHTML, latestHTML } from '../community.js';
-import { mapRecords, mapSVG } from '../map.js';
+import { profileHTML, threadHTML, mapHTML, reportHTML, escapeHTML, updatesHTML } from '../community.js';
+import { mapRecords, mapSVG, buildingDetailHTML } from '../map.js';
 
 const startedAt = Date.parse('2026-10-23T00:15:00+09:00');
 const restoredAt = startedAt + 60000;
@@ -64,7 +64,7 @@ test('プロフィールの手掛かりは中間保存にだけ残る', () => {
 test('脚本の誕生日・音・撮影・都市伝説の投稿と管理人メモが揃っている', () => {
   const all = THREADS.flatMap(item => item.posts.map(post => post.body)).join('\n');
   for (const clue of ['兄が消えた日が自分の誕生日', 'スマホで録音したけど無音', 'JKです', 'デスゲーム', 'パスワードが割れそう']) assert.ok(all.includes(clue), clue);
-  const memo = ADMIN_MEMO.join('\n');
+  const memo = ADMIN_MEMO.map(paragraph => paragraph.text).join('\n');
   assert.match(memo, /被害者を救っているんじゃないか/u);
   assert.match(memo, /隣り合った建物が無くて/u);
 });
@@ -112,22 +112,26 @@ test('現場公開前には閉鎖できず、公開後にだけ唯一の結末�
   const finished = complete();
   assert.equal(transition(finished, { type: 'restore' }, publishedAt + 10000), finished);
 });
-test('復元後の閲覧人数は1→2〜10、公開後は11〜999で止まる', () => {
+test('復元後の閲覧人数は1→quietViewersの範囲、公開後はfloodViewersの範囲で止まる', () => {
+  const { quietViewers, floodViewers } = CONFIG;
+  const quietFullAt = publishedAt + CONFIG.quietViewerInterval * (quietViewers.max - quietViewers.min + 1);
   assert.equal(viewerCount(restored(), restoredAt), 1);
-  assert.equal(viewerCount(restored(), publishedAt), 2);
-  assert.equal(viewerCount(restored(), publishedAt + 100000), 10);
-  assert.equal(viewerCount(published(), publishedAt), 11);
-  assert.equal(viewerCount(published(), publishedAt + CONFIG.floodDuration), 999);
-  assert.equal(viewerCount(published(), publishedAt + 86400000), 999);
+  assert.equal(viewerCount(restored(), publishedAt), quietViewers.min);
+  assert.equal(viewerCount(restored(), quietFullAt), quietViewers.max);
+  assert.equal(viewerCount(restored(), quietFullAt + 86400000), quietViewers.max);
+  assert.equal(viewerCount(published(), publishedAt), floodViewers.min);
+  assert.equal(viewerCount(published(), publishedAt + CONFIG.floodDuration), floodViewers.max);
+  assert.equal(viewerCount(published(), publishedAt + 86400000), floodViewers.max);
 });
 test('現場公開後にだけ閉鎖要請と配信スレッドが現れ、書き込みが有限に増える', () => {
   assert.equal(visibleThreads('live', restored(), publishedAt).some(item => item.id === 'privacy'), false);
   const initial = visibleThreads('live', published(), publishedAt);
   assert.ok(initial.some(item => item.id === 'privacy'));
-  assert.equal(initial.find(item => item.id === 'livestream').posts.length, 3);
+  assert.equal(initial.find(item => item.id === FLOOD_THREAD.id).posts.length, CONFIG.floodInitialPosts);
   const later = visibleThreads('live', published(), publishedAt + CONFIG.floodPostInterval);
-  assert.equal(later.find(item => item.id === 'livestream').posts.length, 4);
-  assert.equal(visibleThreads('live', published(), publishedAt + 100000).find(item => item.id === 'livestream').posts.length, 24);
+  assert.equal(later.find(item => item.id === FLOOD_THREAD.id).posts.length, CONFIG.floodInitialPosts + 1);
+  const allPostsAt = publishedAt + CONFIG.floodPostInterval * FLOOD_THREAD.posts.length;
+  assert.equal(visibleThreads('live', published(), allPostsAt + 86400000).find(item => item.id === FLOOD_THREAD.id).posts.length, FLOOD_THREAD.posts.length);
 });
 test('公開後でもアーカイブの掲示板に未来の投稿は混入しない', () => {
   for (const snapshot of ['latest', 'middle', 'oldest']) {
@@ -141,7 +145,7 @@ test('公開後でもアーカイブの地図には新しい事故ピンを足�
   assert.equal(mapRecords(records, published(), false).length, 1);
   assert.equal(mapRecords(ACCIDENTS, published(), true).length, ACCIDENTS.length + 1);
   assert.equal(mapRecords(ACCIDENTS, published(), true).filter(item => item.buildingId === TARGET_BUILDING_ID).length, 1);
-  assert.equal(ACCIDENTS.length, 18);
+  assert.equal(ACCIDENTS.length, 18); // 脚本上の初期事故件数。変更時は README も更新する
 });
 test('所在地・事故IDは一意で、新しい現場は初期の事故に含まれていない', () => {
   assert.equal(new Set(BUILDINGS.map(item => item.id)).size, BUILDINGS.length);
@@ -152,7 +156,9 @@ test('所在地・事故IDは一意で、新しい現場は初期の事故に含
   assert.ok(ACCIDENTS.every(record => record.buildingId !== TARGET_BUILDING_ID));
 });
 test('ニュースの位置・階数とメモの設備条件に一致する現場が1つになる', () => {
-  const candidates = BUILDINGS.filter(place => place.x > 1240 && place.y > 680 && place.floors === 5 && place.built < 1980 && !ACCIDENTS.some(record => record.buildingId === place.id) && place.elevator.includes('更新記録なし'));
+  // ニュースの「霧川東岸・線路より南・汐見大橋より河口側」に当たる、生成地図の南東部の範囲（画像ピクセル座標）。
+  const southeastOfRiverAndRailway = place => place.x > 1240 && place.y > 680;
+  const candidates = BUILDINGS.filter(place => southeastOfRiverAndRailway(place) && place.floors === 5 && place.built < 1980 && !ACCIDENTS.some(record => record.buildingId === place.id) && place.elevator.includes('更新記録なし'));
   assert.deepEqual(candidates.map(item => item.id), [TARGET_BUILDING_ID]);
   assert.equal(addressOf(TARGET_BUILDING), '霧原市汐見町3丁目6番地');
 });
@@ -224,15 +230,38 @@ test('投稿・施設一覧・掲示板の画面部品に操作用の情報が�
   assert.match(reportHTML(), /name="chome"/u);
   assert.match(reportHTML(), /name="lot"/u);
   assert.match(reportHTML(), /name="source"/u);
-  assert.match(mapHTML(ACCIDENTS, '#/live', false), /旧汐見第三ビル/u);
+  assert.match(mapHTML(ACCIDENTS, '#/live'), /旧汐見第三ビル/u);
   const thread = visibleThreads('live', restored(), publishedAt).find(item => item.id === 'revival');
   assert.match(threadHTML(thread, '#/live', restored()), /記事本文をコピー/u);
-  assert.match(latestHTML('latest', snapshotDates(closed()).latest, ACCIDENTS), /KR-018/u);
+  assert.match(updatesHTML('latest', snapshotDates(closed()).latest, ACCIDENTS), /KR-018/u);
 });
 test('演出値は設定に集約され、待機ループが無制限に走らない', () => {
   assert.ok(CONFIG.tickInterval >= 250);
-  assert.equal(CONFIG.newsDelay, 5000);
+  assert.equal(CONFIG.newsDelay, 5000); // 脚本指定の「5秒後にニュースが出る」
   assert.ok(CONFIG.floodDuration > CONFIG.floodPostInterval);
+});
+test('投稿フォームの丁目・番地は1から施設の最大値まで並び、正解の所在地を選べる', () => {
+  const form = reportHTML();
+  const values = name => [...form.split(`name="${name}"`)[1].split('</select>')[0].matchAll(/<option value="(\d+)"/gu)].map(match => Number(match[1]));
+  assert.deepEqual(values('chome'), [1, 2, 3]);
+  assert.deepEqual(values('lot'), Array.from({ length: 12 }, (_, index) => index + 1));
+  assert.ok(values('chome').includes(TARGET_BUILDING.chome) && values('lot').includes(TARGET_BUILDING.lot));
+});
+test('考察メモの強調はデータで指定した段落に付く', () => {
+  assert.deepEqual(ADMIN_MEMO.filter(item => item.emphasis).map(item => item.emphasis), ['resolution', 'location']);
+  assert.match(ADMIN_MEMO.find(item => item.emphasis === 'location').text, /隣り合った建物が無くて/u);
+});
+test('施設詳細のHTMLはデータ由来の文字列をエスケープし、未掲載の施設では事故後の記述を隠す', () => {
+  const place = { ...TARGET_BUILDING, name: '<b>仮</b>', note: 'A & B', elevator: '乗用／1975年設置・事故後撤去' };
+  const withoutRecord = buildingDetailHTML(place, undefined);
+  assert.ok(withoutRecord.includes('&lt;b&gt;仮&lt;/b&gt;'));
+  assert.ok(withoutRecord.includes('A &amp; B'));
+  assert.doesNotMatch(withoutRecord, /事故後/u);
+  const record = mapRecords([], published(), true)[0];
+  const withRecord = buildingDetailHTML(place, { ...record, comments: ['<script>'] });
+  assert.match(withRecord, /事故後撤去/u);
+  assert.ok(withRecord.includes('&lt;script&gt;'));
+  assert.ok(withRecord.includes(record.id));
 });
 test('全ESモジュールのローカルimport先・HTMLの配信ファイルが存在する', async () => {
   for (const file of ['app.js', 'community.js', 'game-state.js', 'map.js', 'map-layout.js', 'data.js', 'board-data.js']) {

@@ -70,7 +70,7 @@ test('配信画像の寸法・座標系・画像の指紋が一致する', async
 });
 test('30施設の中心は生成画像の灰色の建物に重なり、水面や白い道路に乗らない', async () => {
   const image = await imageData();
-  assert.equal(BUILDINGS.length, 30);
+  assert.equal(BUILDINGS.length, 30); // 脚本上の件数。変更時は README も更新する
   for (const place of BUILDINGS) {
     assert.ok(place.x >= 0 && place.x < image.width && place.y >= 0 && place.y < image.height, place.id);
     const color = image.pixel(place.x, place.y), [r, g, b] = color;
@@ -89,7 +89,7 @@ test('事故18件のピンは登録済み施設に結び付き、施設の当た
 });
 test('6件の目撃地点は付近の歩道や広場の明るい地面にあり、水面と建物内部を避ける', async () => {
   const image = await imageData();
-  assert.equal(SIGHTINGS.length, 6);
+  assert.equal(SIGHTINGS.length, 6); // 脚本上の件数。変更時は README も更新する
   assert.equal(new Set(SIGHTINGS.map(item => item.id)).size, SIGHTINGS.length);
   for (const item of SIGHTINGS) {
     const place = BUILDINGS.find(entry => entry.id === item.buildingId), color = image.pixel(item.x, item.y);
@@ -101,6 +101,7 @@ test('6件の目撃地点は付近の歩道や広場の明るい地面にあり�
   }
 });
 test('目撃情報は保存日以前のものだけを表示し、最古の保存には追加しない', () => {
+  // 保存日より後の目撃は出さない（脚本上の世代別件数）。
   assert.equal(sightingsForSnapshot('oldest', dates).length, 0);
   assert.equal(sightingsForSnapshot('middle', dates).length, 4);
   assert.equal(sightingsForSnapshot('latest', dates).length, 6);
@@ -137,7 +138,7 @@ test('目撃ピン・詳細・表示レイヤーが同じ証言を指す', () =>
     assert.ok(detail.includes(item.body));
     assert.ok(detail.includes('data-building-id="' + item.buildingId + '"'));
   }
-  const controls = mapHTML(ACCIDENTS, '#/live', false, SIGHTINGS);
+  const controls = mapHTML(ACCIDENTS, '#/live', SIGHTINGS);
   assert.match(controls, /data-map-layer="accidents"/u);
   assert.match(controls, /data-map-layer="sightings"/u);
   assert.match(controls, /目撃情報 6/u);

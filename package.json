@@ -6,7 +6,7 @@
   "description": "ミスターエレベーター番外編WebARG 三栖田えれ",
   "scripts": {
     "start": "python3 -m http.server 8000 --bind 127.0.0.1",
-    "check": "node --check app.js",
+    "check": "for file in *.js test/*.js; do node --check \"$file\" || exit 1; done",
     "test": "node --test"
   },
   "engines": {

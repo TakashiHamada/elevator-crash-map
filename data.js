@@ -1,12 +1,23 @@
 // 架空の街の施設・事故・証言。位置の正典は生成画像に合わせた map-layout.js です。
 import { MAP_LAYOUT } from './map-layout.js';
+// 地図の操作感・表示の調整値。倍率はすべて「画像1pxが画面何pxになるか」の値（displayScale）で比べる。
 export const MAP_CONFIG = {
   width: MAP_LAYOUT.width, height: MAP_LAYOUT.height, image: MAP_LAYOUT.image,
-  maxZoom: 5.5, zoomStep: 1.4, metersPerPixel: 1.6, scaleBarPixels: 80, districtLabelScale: 0.45, streetLabelScale: 0.9
+  maxZoom: 5.5, zoomStep: 1.4, metersPerPixel: 1.6, scaleBarPixels: 80,
+  // displayScale がこの値以上で町名（district）・施設名と番地（street）を表示する。
+  districtLabelScale: 0.45, streetLabelScale: 0.9,
+  // 縮尺表示に使う切りのよい距離（m）。
+  scaleUnits: [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
+  // 拡大縮小しても画面上で一定に見せるラベルの大きさ（px）。
+  labelFontSize: 10.5, labelStrokeWidth: 3, townFontSize: 12,
+  // 施設・目撃を選んだときの最低ズームと、選択地点を寄せる表示枠内の位置（幅・高さに対する割合）。
+  focusZoomNarrow: 2.3, focusZoomWide: 1.5, focusNarrowMaxWidth: 600,
+  focusSideBySideMinWidth: 760, focusXSideBySide: 0.32, focusXStacked: 0.5, focusY: 0.4,
+  // ホイール1単位あたりのズーム感度と、矢印キー1回の移動量（px）。
+  wheelZoomSensitivity: 0.0013, keyboardPanPixels: 65
 };
 export const TOWNS = ['西山台', '北町', '本町', '中央', '東町', '緑町', '新町', '南町', '港南', '汐見町'];
 export const TOWN_LABELS = MAP_LAYOUT.townLabels;
-export const MAP_GEOGRAPHY = MAP_LAYOUT.geography;
 const building = (id, name, town, chome, lot, built, extra = {}) => ({
   id, name, town, chome, lot, built, floors: 4, use: '事務所・店舗',
   elevator: '乗用エレベーター／更新済み', ...extra, ...MAP_LAYOUT.buildings[id]
@@ -49,6 +60,10 @@ export const BUILDINGS = [
 export const TARGET_BUILDING_ID = 'shiomi-third';
 export const TARGET_BUILDING = BUILDINGS.find(item => item.id === TARGET_BUILDING_ID);
 export const addressOf = item => '霧原市' + item.town + item.chome + '丁目' + item.lot + '番地';
+// 投稿フォームの丁目・番地の選択肢。施設の最大値までの連番にし、正解だけが目立たないようにする。
+const rangeUpTo = max => Array.from({ length: max }, (_, index) => index + 1);
+export const CHOME_OPTIONS = rangeUpTo(Math.max(...BUILDINGS.map(item => item.chome)));
+export const LOT_OPTIONS = rangeUpTo(Math.max(...BUILDINGS.map(item => item.lot)));
 
 const accident = (id, buildingId, date, type, body, source, comments = []) => ({
   id, buildingId, date, type, body, source, comments
@@ -110,7 +125,6 @@ export const ACCIDENTS = [
     ['いつもこの辺りで点検していた技師さんですよね。', 'すごく古いエレベーターにも詳しい人だった。', '帰ってきてほしい。'])
 ];
 export const getBuilding = id => BUILDINGS.find(item => item.id === id);
-export const getAccident = id => ACCIDENTS.find(item => item.id === id);
 export function recordsForSnapshot(snapshot, dates) {
   const cutoff = dates[snapshot];
   return ACCIDENTS.filter(item => item.date <= cutoff);
