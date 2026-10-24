@@ -166,7 +166,7 @@ test('生成地図の上に全施設・川・鉄道・橋・番地のラベル�
   const svg = mapSVG();
   assert.equal((svg.match(/class="map-building(?: map-building--prominent)?"/gu) || []).length, BUILDINGS.length);
   for (const place of BUILDINGS) assert.ok(svg.includes('data-building-id="' + place.id + '"'));
-  for (const clue of ['misuta-realistic-map.png', '三栖田線', '凪浜大橋', '三栖川', '三丁目', '>6</text>']) assert.ok(svg.includes(clue), clue);
+  for (const clue of ['misuta-realistic-map.webp', '三栖田線', '凪浜大橋', '三栖川', '三丁目', '>6</text>']) assert.ok(svg.includes(clue), clue);
 });
 test('保存状態は再読み込みで復帰し、タイマー基準を保つ', () => {
   const storage = memoryStorage();
@@ -175,7 +175,7 @@ test('保存状態は再読み込みで復帰し、タイマー基準を保つ',
   store.dispatch({ type: 'publish', report: correctReport }, publishedAt);
   const reloaded = createStore(storage, publishedAt + 60000);
   assert.deepEqual(reloaded.state, store.state);
-  assert.equal(viewerCount(reloaded.state, publishedAt + 60000), 999);
+  assert.equal(viewerCount(reloaded.state, publishedAt + 60000), CONFIG.floodViewers.max);
 });
 test('壊れた保存データは安全に初期化でき、保存機能自体は使い続けられる', () => {
   for (const raw of ['{broken', 'null', '{"version":999}', JSON.stringify({ ...complete(), publishedAt: restoredAt - 1 })]) {
@@ -290,6 +290,8 @@ test('全ESモジュールのローカルimport先・HTMLの配信ファイル�
   }
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /src="app\.js" type="module"/u);
-  await access(new URL('../style.css', import.meta.url));
-  await access(new URL('../assets/elevator-crash.png', import.meta.url));
+  // index.html が読み込むローカルファイル（外部URL・ページ内リンクを除く）と、JSが組み立てる画像の参照先。
+  const localReferences = [...html.matchAll(/(?:href|src)="([^"#:]+)"/gu)].map(match => match[1]);
+  assert.ok(localReferences.includes('assets/favicon.svg') && localReferences.includes('style.css'));
+  for (const path of [...localReferences, 'assets/admin-avatar.webp']) await access(new URL('../' + path, import.meta.url));
 });

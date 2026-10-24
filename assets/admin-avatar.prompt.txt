@@ -1,0 +1,16 @@
+Use case: photorealistic-natural
+Asset type: square profile avatar for the administrator of a fictional Japanese elevator accident map website, readable at 45–53 CSS pixels.
+Primary request: a mysterious, unsettling male human silhouette; this administrator is secretly the urban legend "Elevator Man", but convey the secret only through atmosphere.
+Scene/backdrop: a dim, old Japanese elevator doorway, barely suggested by two narrow vertical strips of dull light behind the figure.
+Subject: one solitary man in dark plain clothing, facing the viewer; head and shoulders fill most of the square. His entire face is lost in natural shadow with no discernible facial features.
+Style/medium: an anonymous, slightly grainy photographic profile picture, restrained Japanese urban-legend horror.
+Composition/framing: square 1:1, centered head and upper torso, clear silhouette and restrained background, readable as a tiny avatar.
+Lighting/mood: faint cold backlight outlines the head and shoulders against charcoal gray; quiet, suspicious, enigmatic.
+Color palette: near-monochrome charcoal black and muted desaturated gray-green.
+Constraints: one person only, no text, no logo, no watermark, no graphic border; no glowing eyes, no exposed face, no exaggerated monster features, no blood or gore. Opaque background. The image must remain distinguishable as a human silhouette at thumbnail size.
+
+背景の明るさを調整した編集プロンプト（既存アイコンを入力画像として内蔵image_genで編集）:
+Use case: lighting-weather.
+Edit the provided administrator avatar image. Keep the same man, pose, centered square head-and-shoulders composition, elevator doorway, clothing, grainy photographic style and mysterious atmosphere.
+Requested change: make the human silhouette easier to recognize by making the background moderately brighter. Lift the elevator walls and door panels behind the man to a muted medium gray-green, with soft cold ambient light distributed behind the entire head, neck and shoulders, not only the narrow vertical light strips. Increase separation along both sides of his head and shoulders so the complete human outline is immediately clear at 45–53 pixels. Add only subtle reflected rim light on the outer hair and jacket edges if needed.
+Keep the man dark and his face entirely hidden in shadow; do not reveal eyes or facial features. Maintain restrained eerie Japanese urban-legend atmosphere. This is a modest lighting adjustment, not a redesign. Preserve square framing, one person, no text, no watermark, no glowing eyes, no extra objects, opaque background.

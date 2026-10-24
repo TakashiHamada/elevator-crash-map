@@ -24,8 +24,16 @@
   <meta name="twitter:image" content="https://takashihamada.github.io/elevator-crash-map/assets/social-map.png">
   <meta name="twitter:image:alt" content="公開中だった三栖田市のエレベーター事故マップ。地名や施設、赤い事故ピンと青い目撃情報の印が並ぶ地図。">
   <title>三栖田えれ(β)</title>
-  <link rel="icon" href="assets/elevator-crash.png">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="style.css">
+  <!-- 地図画像と依存モジュールは app.js の読み込みを待たずに取得を始める。 -->
+  <link rel="preload" as="image" type="image/webp" href="assets/misuta-realistic-map.webp">
+  <link rel="modulepreload" href="board-data.js">
+  <link rel="modulepreload" href="data.js">
+  <link rel="modulepreload" href="map-layout.js">
+  <link rel="modulepreload" href="game-state.js">
+  <link rel="modulepreload" href="community.js">
+  <link rel="modulepreload" href="map.js">
   <script src="app.js" type="module"></script>
 </head>
 <body>
@@ -34,7 +42,6 @@
   <dialog id="site-dialog" aria-labelledby="modal-title">
     <button class="dialog-close" type="button" data-action="dismiss" aria-label="閉じる">×</button>
     <div id="dialog-content"></div>
-    <div class="dialog-bottom"><button class="text-link" type="button" data-action="dismiss">閉じる</button></div>
   </dialog>
   <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
 </body>

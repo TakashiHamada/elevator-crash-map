@@ -103,20 +103,16 @@ function liveNoticeHTML(now) {
   if (!isLive() || !newsIsVisible(store.state, now)) return '';
   return `<a class="new-post-notice" href="#/live?view=board"><span class="new-post-label">新着</span>市民掲示板に新しい書き込みがあります。<span aria-hidden="true">→</span></a>`;
 }
-function sidebarBoardHTML(threads) {
-  return '<h2>市民掲示板より</h2>' + threads.slice(0, 3).map(thread => `<a href="${makeRoute(currentBase, 'board', { thread: thread.id })}">${escapeHTML(thread.title)}</a>`).join('');
-}
-function sidebarHTML(threads, recordCount) {
-  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース'], ['updates', '新着情報'], ['board', '市民掲示板'], ['profile', '管理人について']];
+function sidebarHTML(threads, recordCount, archived = false) {
+  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース検索'], ['updates', '更新履歴'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
-  return `<aside class="site-sidebar"><p class="sidebar-label">三栖田市のエレベーター事故</p><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
-    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>町内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="text-link" type="button" data-action="report">事故情報の投稿 →</button></div>
-    <div class="sidebar-board">${sidebarBoardHTML(threads)}</div>
-    <p class="sidebar-footnote">投稿の際は、被害に遭われた方や<br>ご家族への配慮をお願いします。</p></aside>`;
+  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
+    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>市内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report" ${archived ? 'disabled' : ''}>事故情報を投稿する</button></div>
+    </aside>`;
 }
 function contentHTML(records, plottedRecords, threads, sightings, now) {
   const archived = currentRoute.type === 'snapshot';
-  if (currentView === 'post') return postingHelpHTML();
+  if (currentView === 'post') return postingHelpHTML(archived);
   if (currentView === 'profile') return `<div class="document-page">${profileHTML(currentSnapshot)}</div>`;
   if (currentView === 'updates') return updatesHTML(currentSnapshot, archived ? snapshotDates(store.state)[currentSnapshot] : localDate(store.state.restoredAt), records);
   if (currentView === 'news') return `<div id="breaking-article">${!archived && newsIsVisible(store.state, now) ? breakingNewsHTML(store.state) : ''}</div>${newsIndexHTML(records, currentBase)}`;
@@ -124,7 +120,7 @@ function contentHTML(records, plottedRecords, threads, sightings, now) {
     const thread = threads.find(item => item.id === currentRoute.params.get('thread'));
     return thread ? threadHTML(thread, currentBase, store.state) : threadListHTML(threads, currentBase, store.state);
   }
-  return mapHTML(plottedRecords, sightings);
+  return mapHTML(plottedRecords, sightings, archived);
 }
 function publicHTML(now) {
   const archived = currentRoute.type === 'snapshot';
@@ -140,10 +136,18 @@ function publicHTML(now) {
   const archiveListLink = `#/archive?q=${encodeURIComponent(CONFIG.name)}`;
   const archivedBar = archived ? `<div class="archive-capture-bar"><a href="${archiveListLink}"><span aria-hidden="true">←</span> 保存一覧へ戻る</a><span>${dateLabel(dates[currentSnapshot])} の保存ページ<span class="capture-readonly">／閲覧専用</span></span></div>` : '';
   return { html: `<div class="site-shell public-shell">${archivedBar}${headerHTML(currentBase, archived)}
-    <div class="site-status-line"><span>三栖田市の事故情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
+    <div class="site-status-line"><span>三栖田市のエレベーター事故の情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
     <div id="live-notice">${liveNoticeHTML(now)}</div>
-    <main class="public-layout">${sidebarHTML(threads, plottedRecords.length)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
+    <main class="public-layout">${sidebarHTML(threads, plottedRecords.length, archived)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
     ${footerHTML(page)}</div>`, plottedRecords, sightings };
+}
+// 管理者画面の操作（復元・再閉鎖）は、ログイン済みで管理者画面にいて、進行が requiredPhase のときだけ受け付ける。
+function canOperateAdmin(requiredPhase) {
+  return authenticated && currentRoute.type === 'admin' && store.state.phase === requiredPhase;
+}
+// 管理者操作の確認ダイアログ。確定ボタンの data-action で実行し、閉鎖は confirmClass で警告色にする。
+function adminConfirmHTML(title, message, confirmAction, confirmLabel, confirmClass = '') {
+  return `<h2 id="modal-title">${title}</h2><p>${message}</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">キャンセル</button><button class="button button--primary${confirmClass ? ' ' + confirmClass : ''}" type="button" data-action="${confirmAction}">${confirmLabel}</button></div>`;
 }
 // 管理者画面下部の操作。閉鎖中は「復元」、現場掲載後は「再閉鎖」（クリア条件）、その間は公開中の案内。
 function adminOperationHTML(phase) {
@@ -251,7 +255,7 @@ function render(options = {}) {
   if (resolved.login) login();
 }
 function openReport() {
-  // 保存ページでは当時のボタンが残っているだけで、押しても何も起きない。
+  // 保存ページの投稿ボタンは無効。直接呼び出された場合も投稿画面を開かない。
   if (!isLive()) return;
   if (store.state.phase === 'published') { modal('<h2 id="modal-title">事故情報を掲載しました</h2><p>お寄せいただいた事故情報は、地図に掲載されています。</p>'); return; }
   modal(reportHTML());
@@ -268,7 +272,6 @@ function revealNewsArrival(threads, now) {
   lastNewsVisible = true;
   document.querySelector('#live-notice').innerHTML = liveNoticeHTML(now);
   document.querySelector('[data-board-count]').textContent = threads.length;
-  document.querySelector('.sidebar-board').innerHTML = sidebarBoardHTML(threads);
   if (currentView === 'board' && !currentRoute.params.has('thread')) document.querySelector('#content-panel').innerHTML = threadListHTML(threads, currentBase, store.state);
   if (currentView === 'news') document.querySelector('#breaking-article').innerHTML = breakingNewsHTML(store.state);
   announcer.textContent = '市民掲示板に新しい書き込みがあります。';
@@ -305,10 +308,18 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'report') { openReport(); return; }
-  if (action === 'restore' && authenticated && currentRoute.type === 'admin') {
-    store.dispatch({ type: 'restore' }); navigate('#/live'); return;
+  if (action === 'restore' && canOperateAdmin('closed')) {
+    modal(adminConfirmHTML('サイトを復元しますか？', '保存されている内容を使って、地図と掲示板の公開を再開します。', 'confirm-restore', 'サイトを復元'));
+    return;
   }
-  if (action === 'close-site' && authenticated && currentRoute.type === 'admin' && store.state.phase === 'published') {
+  if (action === 'confirm-restore' && dialog.open && canOperateAdmin('closed')) {
+    store.dispatch({ type: 'restore' }); dialog.close(); navigate('#/live'); return;
+  }
+  if (action === 'close-site' && canOperateAdmin('published')) {
+    modal(adminConfirmHTML('サイトを閉鎖しますか？', '公開中の地図と掲示板は閲覧できなくなります。', 'confirm-close-site', 'サイトを閉鎖', 'admin-operation-button--close'));
+    return;
+  }
+  if (action === 'confirm-close-site' && dialog.open && canOperateAdmin('published')) {
     store.dispatch({ type: 'close' }); playClosingTransition(); return;
   }
   if (action === 'replay') {

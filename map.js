@@ -6,17 +6,38 @@ import { MAP_LAYOUT } from './map-layout.js';
 import { escapeHTML, dateLabel } from './community.js';
 import { localDate } from './game-state.js';
 
+/** 外周（[x, y] の配列、画像ピクセル座標）を囲む最小の長方形。 */
+function outlineBounds(outline) {
+  const xs = outline.map(([x]) => x), ys = outline.map(([, y]) => y);
+  return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) };
+}
+
 export function mapSVG() {
   const config = MAP_CONFIG;
+  // 背景と同じ画像・原寸座標を参照し、建物の外周だけを切り抜く。拡大縮小や移動でも位置がずれない。
+  const facilities = BUILDINGS.map(place => {
+    const points = place.outline.map(point => point.join(',')).join(' ');
+    const { left, top, right, bottom } = outlineBounds(place.outline);
+    return { place, points, left, top, width: right - left, height: bottom - top, bottom };
+  });
   // 施設一覧を設けず、地図上の施設そのものをキーボード・支援技術から選べるようにする。
   return `<svg class="city-map" viewBox="0 0 ${config.width} ${config.height}" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="施設情報">
+    <defs>
+      <image id="facility-source-image" href="${config.image}" x="0" y="0" width="${config.width}" height="${config.height}" preserveAspectRatio="xMidYMid meet"/>
+      ${facilities.map(({ place, points }) => `<clipPath id="facility-clip-${place.id}" clipPathUnits="userSpaceOnUse"><polygon points="${points}"/></clipPath>`).join('')}
+    </defs>
     <image class="map-basemap" href="${config.image}" x="0" y="0" width="${config.width}" height="${config.height}" preserveAspectRatio="xMidYMid meet" aria-hidden="true"/>
     <g class="geographic-labels" aria-hidden="true">${MAP_LAYOUT.geographicLabels.map(label => `<text x="${label.x}" y="${label.y}" class="${label.kind}-label"${label.rotate ? ` transform="rotate(${label.rotate} ${label.x} ${label.y})"` : ''}>${escapeHTML(label.text)}</text>`).join('')}</g>
     <g class="town-labels" aria-hidden="true">${TOWN_LABELS.map(([name, x, y]) => `<text x="${x}" y="${y}">${escapeHTML(name)}</text>`).join('')}</g>
     <g class="block-labels" aria-hidden="true">${MAP_LAYOUT.blockLabels.map(([name, x, y]) => `<text x="${x}" y="${y}">${escapeHTML(name)}</text>`).join('')}</g>
-    <g class="building-layer">${BUILDINGS.map(place => `<g class="map-building${place.prominent ? ' map-building--prominent' : ''}" data-building-id="${place.id}" tabindex="0" role="button" aria-label="${escapeHTML(place.name)}の施設情報" aria-controls="map-detail" aria-expanded="false">
-      <rect x="${place.box[0]}" y="${place.box[1]}" width="${place.width}" height="${place.height}" rx="1"/>
-      <text x="${place.x}" y="${place.box[3] + 12}">${escapeHTML(place.name)}</text>
+    <g class="building-layer">${facilities.map(({ place, points, left, top, width, height, bottom }) => `<g class="map-building${place.prominent ? ' map-building--prominent' : ''}" data-building-id="${place.id}" tabindex="0" role="button" aria-label="${escapeHTML(place.name)}の施設情報" aria-controls="map-detail" aria-expanded="false">
+      <svg class="building-cutout" x="${left}" y="${top}" width="${width}" height="${height}" viewBox="${left} ${top} ${width} ${height}" aria-hidden="true">
+        <g clip-path="url(#facility-clip-${place.id})"><use href="#facility-source-image"/></g>
+        <polygon class="building-tint" points="${points}"/>
+      </svg>
+      <polygon class="building-contour" points="${points}" aria-hidden="true"/>
+      <polygon class="building-hit-area" points="${points}" aria-hidden="true"/>
+      <text x="${place.x}" y="${bottom + config.facilityLabelOffset}">${escapeHTML(place.name)}</text>
     </g>`).join('')}</g>
   </svg>`;
 }
@@ -93,8 +114,11 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   // offsetX/Y: 画像左上の画面上の位置。画面上の倍率は displayScale() = fitScale × userZoom。
   let userZoom = 1, fitScale = 1, offsetX = 0, offsetY = 0, stageWidth = 0, stageHeight = 0, selectedId = null;
   let appliedScale = null;
+  // 選択中の建物（目撃は地点のみ）を囲む範囲。詳細パネルの左右判定に使う（画像ピクセル座標）。
+  let selectedBounds = null;
   const pointers = new Map();
   let previousPinchDistance = null, lastFocus = null;
+  let suppressMapClick = false;
   world.innerHTML = mapSVG() + accidentPinsHTML(plottedRecords) + sightingPinsHTML(sightings);
   world.style.width = config.width + 'px';
   world.style.height = config.height + 'px';
@@ -106,6 +130,8 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     const mapWidth = config.width * scale, mapHeight = config.height * scale;
     offsetX = mapWidth <= stageWidth ? (stageWidth - mapWidth) / 2 : Math.min(0, Math.max(stageWidth - mapWidth, offsetX));
     offsetY = mapHeight <= stageHeight ? (stageHeight - mapHeight) / 2 : Math.min(0, Math.max(stageHeight - mapHeight, offsetY));
+    // パネル位置の読み取りを transform の書き込みより先に済ませ、移動のたびの強制レイアウトを避ける。
+    updatePanelPlacement();
     world.style.transform = `translate(${offsetX}px,${offsetY}px) scale(${scale})`;
     if (scale === appliedScale) return;
     appliedScale = scale;
@@ -137,10 +163,6 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     offsetY = stageHeight / 2 - imageY * displayScale();
     applyView();
   }
-  function resetView() {
-    userZoom = 1;
-    centerOn(config.width / 2, config.height / 2);
-  }
   function setZoom(value, atX = stageWidth / 2, atY = stageHeight / 2) {
     value = Math.min(config.maxZoom, Math.max(1, value));
     const ratio = value / userZoom;
@@ -153,17 +175,42 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     world.querySelector('.map-building.is-selected')?.classList.remove('is-selected');
     if (buildingId) world.querySelector('.map-building[data-building-id="' + buildingId + '"]')?.classList.add('is-selected');
   }
+  // 地図端で移動が制限された後の建物の範囲と、右側に置いた場合のパネルを比較する（画面上のpx）。
+  // 左右の候補を固定して判定するので、左へ切り替えた直後に右へ戻ることはない。
+  function updatePanelPlacement() {
+    if (panel.hidden || !selectedBounds) return;
+    const panelWidth = panel.offsetWidth, panelHeight = panel.offsetHeight;
+    if (!panelWidth || !panelHeight) return;
+    const panelTop = panel.offsetTop;
+    // 左右どちらに置いても地図枠との間隔（--map-detail-inset）は同じなので、今の位置から反対側の位置を求められる。
+    const panelXWhenRight = stage.dataset.detailSide === 'left' ? stageWidth - panel.offsetLeft - panelWidth : panel.offsetLeft;
+    const panelXWhenLeft = stageWidth - panelXWhenRight - panelWidth;
+    const scale = displayScale(), gap = config.detailClearancePixels;
+    const buildingLeft = offsetX + selectedBounds.left * scale - gap;
+    const buildingRight = offsetX + selectedBounds.right * scale + gap;
+    const buildingTop = offsetY + selectedBounds.top * scale - gap;
+    const buildingBottom = offsetY + selectedBounds.bottom * scale + gap;
+    const overlaps = buildingRight > panelXWhenRight && buildingLeft < panelXWhenRight + panelWidth
+      && buildingBottom > panelTop && buildingTop < panelTop + panelHeight;
+    // スマートフォンの下部パネルは全幅なので左右の候補が同じ位置になり、右のまま切り替わらない。
+    const side = overlaps && panelXWhenRight > panelXWhenLeft ? 'left' : 'right';
+    if (stage.dataset.detailSide !== side) stage.dataset.detailSide = side;
+  }
   function closeDetail(restoreFocus = false) {
     panel.hidden = true;
     markSelected({});
     selectedId = null;
+    selectedBounds = null;
+    stage.dataset.detailSide = 'right';
     if (restoreFocus) lastFocus?.focus({ preventScroll: true });
     onSelect?.(null);
   }
   // 詳細パネルを開き、focus 指定時は選択地点がパネルに隠れない位置まで寄せる。
   function revealPanelAt(point, focus) {
+    // 建物は外周、目撃は地点そのものを、パネルと重ねない範囲にする。
+    selectedBounds = outlineBounds(point.outline ?? [[point.x, point.y]]);
     panel.hidden = false; panel.scrollTop = 0;
-    if (!focus) return;
+    if (!focus) { updatePanelPlacement(); return; }
     lastFocus = document.activeElement;
     userZoom = Math.max(userZoom, stageWidth < config.focusNarrowMaxWidth ? config.focusZoomNarrow : config.focusZoomWide);
     const focusX = stageWidth > config.focusSideBySideMinWidth ? config.focusXSideBySide : config.focusXStacked;
@@ -191,8 +238,11 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     onSelect?.(id);
   }
   stage.addEventListener('click', event => {
+    // ドラッグ・ピンチ終了時に発生するクリックでは詳細を閉じない。detail 0 はキーボード由来のクリックなので抑止しない。
+    if (suppressMapClick && event.detail !== 0) { suppressMapClick = false; return; }
     const layerButton = event.target.closest('[data-map-layer]');
-    if (layerButton && !layerButton.disabled) {
+    if (layerButton) {
+      if (layerButton.disabled) return;
       const layer = layerButton.dataset.mapLayer;
       if (['accidents', 'sightings'].includes(layer)) {
         const visible = layerButton.getAttribute('aria-pressed') !== 'true';
@@ -206,10 +256,11 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     const action = event.target.closest('[data-map-action]')?.dataset.mapAction;
     if (action === 'in') setZoom(userZoom * config.zoomStep);
     if (action === 'out') setZoom(userZoom / config.zoomStep);
-    if (action === 'reset') { closeDetail(); resetView(); }
     if (action === 'close') closeDetail(true);
+    if (action) return;
     const building = event.target.closest('[data-building-id]');
-    if (building) selectBuilding(building.dataset.buildingId);
+    if (building) { selectBuilding(building.dataset.buildingId); return; }
+    if (!panel.hidden && (event.target === stage || world.contains(event.target))) closeDetail();
   }, { signal });
   stage.addEventListener('wheel', event => {
     if (event.target.closest('.map-detail')) return;
@@ -219,16 +270,21 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   }, { signal, passive: false });
   // 建物・ピン・ボタンの上から始めた操作はクリックとして扱い、ドラッグを始めない。
   stage.addEventListener('pointerdown', event => {
+    if (!pointers.size) suppressMapClick = false;
     if (event.button > 0 || event.target.closest('[data-building-id],button,.map-detail')) return;
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY });
     stage.setPointerCapture(event.pointerId);
     stage.classList.add('is-dragging');
-    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; previousPinchDistance = Math.hypot(a.x - b.x, a.y - b.y); }
+    if (pointers.size === 2) {
+      suppressMapClick = true;
+      const [a, b] = [...pointers.values()]; previousPinchDistance = Math.hypot(a.x - b.x, a.y - b.y);
+    }
   }, { signal });
   stage.addEventListener('pointermove', event => {
     const previous = pointers.get(event.pointerId);
     if (!previous) return;
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointers.set(event.pointerId, { ...previous, x: event.clientX, y: event.clientY });
+    if (Math.hypot(event.clientX - previous.startX, event.clientY - previous.startY) > config.tapMoveTolerancePixels) suppressMapClick = true;
     if (pointers.size === 2) {
       // 2本指: 指の間隔の変化率で、2本指の中点を中心に拡大縮小する。
       const [a, b] = [...pointers.values()], distance = Math.hypot(a.x - b.x, a.y - b.y);
@@ -246,7 +302,8 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   // 拡大・移動で表示枠の外にある施設も、Tabで選んだときは見える位置へ寄せる。
   stage.addEventListener('focusin', event => {
     const building = event.target.closest('.map-building');
-    if (!building) return;
+    // タッチ・クリック時は、クリック成立前に建物が指やカーソルの下から動かないようにする。
+    if (!building || !building.matches(':focus-visible')) return;
     const place = getBuilding(building.dataset.buildingId);
     if (place) centerOn(place.x, place.y);
   }, { signal });

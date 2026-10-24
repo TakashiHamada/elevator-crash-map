@@ -12,14 +12,12 @@
     html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
     .map-heading, .map-below { display: none; }
     .map-stage { width: 1200px; height: 630px; min-height: 0; max-height: none; border: 0; }
-    .map-location small { font-size: 12px; letter-spacing: 0; }
   </style>
 </head>
 <body>
   <main id="share-map"></main>
   <script type="module">
     import { ACCIDENTS, SIGHTINGS, MAP_CONFIG } from './data.js';
-    import { CONFIG } from './board-data.js';
     import { mapHTML } from './community.js';
     import { mountMap } from './map.js';
 
@@ -29,7 +27,6 @@
     await basemap.decode();
     await document.fonts.ready;
     document.querySelector('#share-map').innerHTML = mapHTML(ACCIDENTS, SIGHTINGS);
-    document.querySelector('.map-location small').textContent = CONFIG.name;
     mountMap(document.querySelector('#map-stage'), { plottedRecords: ACCIDENTS, sightings: SIGHTINGS });
     document.documentElement.dataset.imageReady = 'true';
   </script>

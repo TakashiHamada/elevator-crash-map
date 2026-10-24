@@ -4,25 +4,21 @@ import { CONFIG, NEWS_BODY } from '../board-data.js';
 import { TARGET_BUILDING } from '../data.js';
 import { createState, transition } from '../game-state.js';
 
-// 画面の見た目は扱わず、実際のapp.jsへイベントを送り、閉鎖演出と保存同期の順序を検証する。
-test('閉鎖演出中の別タブのリプレイを取り込み、演出後は初期状態へ戻る', async t => {
-  const startedAt = Date.parse('2026-10-23T12:00:00+09:00');
-  const restored = transition(createState(startedAt), { type: 'restore' }, startedAt);
-  const published = transition(restored, {
-    type: 'publish', report: { ...TARGET_BUILDING, source: NEWS_BODY }
-  }, startedAt + CONFIG.newsDelay);
-  const saved = new Map([[CONFIG.storageKey, JSON.stringify(published)]]);
+// 画面の見た目は扱わず、実際のapp.jsへイベントを送って検証する。
+// app.js はモジュール読み込み時にイベントを登録するので、テストごとに別のURLで読み込み直す。
+let appInstance = 0;
+async function loadAppAt(t, savedState, setupTimers = () => {}) {
+  const saved = new Map([[CONFIG.storageKey, JSON.stringify(savedState)]]);
   const storage = {
     getItem: key => saved.get(key) ?? null,
     setItem: (key, value) => saved.set(key, value)
   };
-  const windowEvents = new Map(), documentEvents = new Map(), timers = new Map();
-  let timerId = 0;
+  const windowEvents = new Map(), documentEvents = new Map();
   const curtain = { style: { setProperty() {} }, classList: { add() {} } };
   const app = { innerHTML: '', inert: false, querySelector: () => curtain };
   const elements = {
     '#app': app,
-    '#site-dialog': { open: false, addEventListener() {} },
+    '#site-dialog': { open: false, addEventListener() {}, showModal() { this.open = true; }, close() { this.open = false; } },
     '#dialog-content': {},
     '#announcer': {},
     'meta[name="theme-color"]': {}
@@ -52,15 +48,39 @@ test('閉鎖演出中の別タブのリプレイを取り込み、演出後は�
     });
   }
   t.mock.method(globalThis, 'setInterval', () => 0);
-  t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
-    timers.set(++timerId, { callback, delay });
-    return timerId;
-  });
-  t.mock.method(globalThis, 'clearTimeout', id => timers.delete(id));
+  setupTimers();
+  await import('../app.js?instance=' + ++appInstance);
+  const click = action => documentEvents.get('click')({ target: { closest: () => ({ dataset: { action } }) } });
+  const savedPhase = () => JSON.parse(storage.getItem(CONFIG.storageKey)).phase;
+  return { app, elements, location, storage, windowEvents, click, savedPhase };
+}
 
-  await import('../app.js');
-  await documentEvents.get('click')({ target: { closest: () => ({ dataset: { action: 'close-site' } }) } });
-  assert.equal(JSON.parse(storage.getItem(CONFIG.storageKey)).phase, 'complete');
+test('閉鎖演出中の別タブのリプレイを取り込み、演出後は初期状態へ戻る', async t => {
+  const startedAt = Date.parse('2026-10-23T12:00:00+09:00');
+  const restored = transition(createState(startedAt), { type: 'restore' }, startedAt);
+  const published = transition(restored, {
+    type: 'publish', report: { ...TARGET_BUILDING, source: NEWS_BODY }
+  }, startedAt + CONFIG.newsDelay);
+  const timers = new Map();
+  let timerId = 0;
+  const { app, elements, location, storage, windowEvents, click, savedPhase } = await loadAppAt(t, published, () => {
+    t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
+      timers.set(++timerId, { callback, delay });
+      return timerId;
+    });
+    t.mock.method(globalThis, 'clearTimeout', id => timers.delete(id));
+  });
+
+  await click('close-site');
+  assert.equal(elements['#site-dialog'].open, true);
+  assert.equal(savedPhase(), 'published', '確認前には閉鎖しない');
+  await click('dismiss');
+  assert.equal(elements['#site-dialog'].open, false);
+  assert.equal(savedPhase(), 'published', 'キャンセル時は公開を維持する');
+  await click('close-site');
+  await click('confirm-close-site');
+  assert.equal(elements['#site-dialog'].open, false);
+  assert.equal(savedPhase(), 'complete');
   assert.equal(app.inert, true);
   const closure = app.innerHTML;
 
@@ -80,4 +100,21 @@ test('閉鎖演出中の別タブのリプレイを取り込み、演出後は�
   assert.equal(location.hash, '#/closed', '最新の保存に従ってルートを判定する');
   assert.equal(app.inert, false);
   assert.equal(timers.size, 0);
+});
+
+test('サイトの復元は確認ダイアログで確定するまで実行しない', async t => {
+  const { elements, location, click, savedPhase } = await loadAppAt(t, createState(Date.parse('2026-10-23T12:00:00+09:00')));
+  await click('restore');
+  assert.equal(elements['#site-dialog'].open, true);
+  assert.equal(savedPhase(), 'closed', '確認前には復元しない');
+  await click('dismiss');
+  assert.equal(elements['#site-dialog'].open, false);
+  assert.equal(savedPhase(), 'closed', 'キャンセル時は閉鎖を維持する');
+  await click('confirm-restore');
+  assert.equal(savedPhase(), 'closed', 'ダイアログを開かずに確定操作だけ届いても復元しない');
+  await click('restore');
+  await click('confirm-restore');
+  assert.equal(elements['#site-dialog'].open, false);
+  assert.equal(savedPhase(), 'restored');
+  assert.equal(location.hash, '#/live');
 });
