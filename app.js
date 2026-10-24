@@ -73,7 +73,7 @@ function headerHTML(base = '#/closed', archived = false) {
 }
 // 全8ページ共通のフッター。ゲームの外側（メタ情報）だけを載せ、物語内のリンクは各ページの本文側に置く。
 function footerHTML(page) {
-  return `<footer class="site-footer"><button class="footer-about" type="button" data-action="about">このページについて</button><button class="footer-hints" type="button" data-action="toggle-hints" aria-pressed="${hintsEnabled}">${hintsEnabled ? 'ヒント使用中' : 'ヒントを使う'}</button>${pageNumberHTML(page)}</footer>`;
+  return `<footer class="site-footer"><button class="footer-about" type="button" data-action="about">このページについて</button><button class="footer-hints" type="button" data-action="toggle-hints" aria-pressed="${hintsEnabled}">${hintsEnabled ? 'ヒントをオフにする' : 'ヒントを使う'}</button>${pageNumberHTML(page)}</footer>`;
 }
 function setHintsEnabled(enabled) {
   hintsEnabled = enabled;
@@ -82,7 +82,7 @@ function setHintsEnabled(enabled) {
   document.body.dataset.hints = enabled ? 'on' : 'off';
   const button = document.querySelector('[data-action="toggle-hints"]');
   if (button) {
-    button.textContent = enabled ? 'ヒント使用中' : 'ヒントを使う';
+    button.textContent = enabled ? 'ヒントをオフにする' : 'ヒントを使う';
     button.setAttribute('aria-pressed', String(enabled));
   }
 }
@@ -328,7 +328,7 @@ document.addEventListener('click', async event => {
   }
   if (action === 'toggle-hints') {
     if (hintsEnabled) { setHintsEnabled(false); announcer.textContent = 'ヒントをオフにしました。'; return; }
-    modal('<h2 id="modal-title">ヒントを使いますか？</h2><p>手掛かりになる文章を赤く表示し、操作するリンクをゆっくり明滅させます。</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">いいえ</button><button class="button button--primary" type="button" data-action="confirm-hints">はい</button></div>', 'game');
+    modal('<h2 id="modal-title">ヒントを使いますか？</h2><p>次に進む手掛かりや、注目したい場所を赤く強調します。ヒントはいつでもオフにできます。</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">いいえ</button><button class="button button--primary" type="button" data-action="confirm-hints">はい</button></div>', 'game');
     hintConfirmationOpen = true;
     return;
   }

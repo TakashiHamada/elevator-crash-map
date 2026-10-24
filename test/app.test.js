@@ -159,7 +159,7 @@ test('ヒントは確認後にオン、オフは即時、再利用時は再確�
   await click('confirm-hints');
   assert.equal(body.dataset.hints, 'on');
   assert.equal(dialog.open, false);
-  assert.equal(toggle.textContent, 'ヒント使用中');
+  assert.equal(toggle.textContent, 'ヒントをオフにする');
   assert.equal(toggle.attributes['aria-pressed'], 'true');
   assert.equal(storage.getItem(CONFIG.hintsKey), 'on');
   assert.equal(app.innerHTML, initialHTML, 'ヒントの切替で地図などの画面を再生成しない');
@@ -191,7 +191,7 @@ test('ヒントは保存・画面移動後も有効で、指定の保存世代�
 
   move('#/archive/latest?view=updates');
   assert.equal(body.dataset.hints, 'on');
-  assert.match(app.innerHTML, /aria-pressed="true">ヒント使用中/);
+  assert.match(app.innerHTML, /aria-pressed="true">ヒントをオフにする/);
   assert.doesNotMatch(app.innerHTML, /data-hint="action"/, '最新の保存ページではメニューを明滅させない');
   assert.match(app.innerHTML, /<dd data-hint="text">掲載情報を更新しました。管理人プロフィールの一部を修正しました。<\/dd>/);
   move('#/archive/latest?view=board');
