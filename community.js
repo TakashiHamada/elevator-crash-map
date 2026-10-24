@@ -70,7 +70,7 @@ export function threadHTML(thread, base, state) {
 export function profileHTML(snapshot) {
   const facts = snapshot === 'middle' ? `<dl class="profile-facts">${PROFILE.facts.map(([key, value]) => `<div><dt>${escapeHTML(key)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>` : '';
   const editedNote = snapshot === 'latest' || snapshot === 'live' ? `<p class="profile-edited">${escapeHTML(PROFILE.edited)}</p>` : '';
-  return `<div class="profile-heading"><img class="profile-avatar" src="assets/admin-avatar.png" alt="管理人のアイコン" width="53" height="53"><div><p>${escapeHTML(CONFIG.name)}</p><h2>管理人について</h2></div></div>
+  return `<div class="profile-heading"><img class="profile-avatar" src="assets/admin-avatar.webp" alt="管理人のアイコン" width="53" height="53"><div><p>${escapeHTML(CONFIG.name)}</p><h2>管理人について</h2></div></div>
     <p class="preserve-lines">${escapeHTML(snapshot === 'oldest' ? PROFILE.oldest : PROFILE.common)}</p>
     ${facts}
     ${editedNote}`;

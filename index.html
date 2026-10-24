@@ -26,6 +26,14 @@
   <title>三栖田えれ(β)</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="style.css">
+  <!-- 地図画像と依存モジュールは app.js の読み込みを待たずに取得を始める。 -->
+  <link rel="preload" as="image" type="image/webp" href="assets/misuta-realistic-map.webp">
+  <link rel="modulepreload" href="board-data.js">
+  <link rel="modulepreload" href="data.js">
+  <link rel="modulepreload" href="map-layout.js">
+  <link rel="modulepreload" href="game-state.js">
+  <link rel="modulepreload" href="community.js">
+  <link rel="modulepreload" href="map.js">
   <script src="app.js" type="module"></script>
 </head>
 <body>

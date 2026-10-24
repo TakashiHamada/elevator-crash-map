@@ -1,6 +1,8 @@
 // 生成画像を原寸で読み取り登録した座標。画像を差し替える場合は建物・歩道の位置も採り直してください。
 export const MAP_LAYOUT = {
-  "image": "assets/misuta-realistic-map.png",
+  // 配信用のWebP（npm run build:map-image で sourceImage から生成）。座標と指紋の基準は sourceImage のPNG。
+  "image": "assets/misuta-realistic-map.webp",
+  "sourceImage": "assets/misuta-realistic-map.png",
   "width": 1536,
   "height": 1024,
   "imageSha256": "2e7406f52d20f5f24c842badc851c0c7309ace73442d5d7ad7a928e60a58e6b9",

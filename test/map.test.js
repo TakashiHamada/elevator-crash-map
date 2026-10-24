@@ -12,10 +12,12 @@ import { mapHTML } from '../community.js';
 // PNGの画素を直接読み、座標が道路・水面・建物のどこに当たるかを検証します。
 // 依存ライブラリは使わず、生成された8bit RGB/RGBA PNGを対象にします。
 let imagePromise;
+// 配信用WebPの容量の上限。品質を上げて超える場合はこの値を見直す。
+const MAP_WEBP_BUDGET_BYTES = 500 * 1024;
 function imageData() {
   if (imagePromise) return imagePromise;
   imagePromise = (async () => {
-    const file = await readFile(new URL('../' + MAP_CONFIG.image, import.meta.url));
+    const file = await readFile(new URL('../' + MAP_LAYOUT.sourceImage, import.meta.url));
     assert.equal(file.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     const width = file.readUInt32BE(16), height = file.readUInt32BE(20);
     assert.equal(file[24], 8);
@@ -67,6 +69,14 @@ test('配信画像の寸法・座標系・画像の指紋が一致する', async
   assert.equal(createHash('sha256').update(image.file).digest('hex'), MAP_LAYOUT.imageSha256);
   assert.match(mapSVG(), /<image class="map-basemap"/u);
   assert.match(mapSVG(), /preserveAspectRatio="xMidYMid meet"/u);
+});
+test('配信用WebPは元PNGと同じ寸法で、容量の予算内に収まる', async () => {
+  const file = await readFile(new URL('../' + MAP_CONFIG.image, import.meta.url));
+  assert.equal(file.toString('ascii', 0, 4), 'RIFF');
+  assert.equal(file.toString('ascii', 8, 16), 'WEBPVP8 ');
+  assert.equal(file.readUInt16LE(26) & 0x3fff, MAP_CONFIG.width);
+  assert.equal(file.readUInt16LE(28) & 0x3fff, MAP_CONFIG.height);
+  assert.ok(file.length <= MAP_WEBP_BUDGET_BYTES, `${file.length} bytes`);
 });
 test('31施設の中心は生成画像の灰色の建物に重なり、水面や白い道路に乗らない', async () => {
   const image = await imageData();

@@ -166,7 +166,7 @@ test('生成地図の上に全施設・川・鉄道・橋・番地のラベル�
   const svg = mapSVG();
   assert.equal((svg.match(/class="map-building(?: map-building--prominent)?"/gu) || []).length, BUILDINGS.length);
   for (const place of BUILDINGS) assert.ok(svg.includes('data-building-id="' + place.id + '"'));
-  for (const clue of ['misuta-realistic-map.png', '三栖田線', '凪浜大橋', '三栖川', '三丁目', '>6</text>']) assert.ok(svg.includes(clue), clue);
+  for (const clue of ['misuta-realistic-map.webp', '三栖田線', '凪浜大橋', '三栖川', '三丁目', '>6</text>']) assert.ok(svg.includes(clue), clue);
 });
 test('保存状態は再読み込みで復帰し、タイマー基準を保つ', () => {
   const storage = memoryStorage();
