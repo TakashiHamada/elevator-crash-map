@@ -103,16 +103,12 @@ function liveNoticeHTML(now) {
   if (!isLive() || !newsIsVisible(store.state, now)) return '';
   return `<a class="new-post-notice" href="#/live?view=board"><span class="new-post-label">新着</span>市民掲示板に新しい書き込みがあります。<span aria-hidden="true">→</span></a>`;
 }
-function sidebarBoardHTML(threads) {
-  return '<h2>市民掲示板より</h2>' + threads.slice(0, 3).map(thread => `<a href="${makeRoute(currentBase, 'board', { thread: thread.id })}">${escapeHTML(thread.title)}</a>`).join('');
-}
 function sidebarHTML(threads, recordCount) {
   const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース'], ['updates', '新着情報'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
-  return `<aside class="site-sidebar"><p class="sidebar-label">三栖田市のエレベーター事故</p><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
-    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>町内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="text-link" type="button" data-action="report">事故情報の投稿 →</button></div>
-    <div class="sidebar-board">${sidebarBoardHTML(threads)}</div>
-    <p class="sidebar-footnote">投稿の際は、被害に遭われた方や<br>ご家族への配慮をお願いします。</p></aside>`;
+  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
+    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>町内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report">事故情報を投稿する</button></div>
+    </aside>`;
 }
 function contentHTML(records, plottedRecords, threads, sightings, now) {
   const archived = currentRoute.type === 'snapshot';
@@ -140,7 +136,7 @@ function publicHTML(now) {
   const archiveListLink = `#/archive?q=${encodeURIComponent(CONFIG.name)}`;
   const archivedBar = archived ? `<div class="archive-capture-bar"><a href="${archiveListLink}"><span aria-hidden="true">←</span> 保存一覧へ戻る</a><span>${dateLabel(dates[currentSnapshot])} の保存ページ<span class="capture-readonly">／閲覧専用</span></span></div>` : '';
   return { html: `<div class="site-shell public-shell">${archivedBar}${headerHTML(currentBase, archived)}
-    <div class="site-status-line"><span>三栖田市の事故情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
+    <div class="site-status-line"><span>三栖田市のエレベーター事故の情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
     <div id="live-notice">${liveNoticeHTML(now)}</div>
     <main class="public-layout">${sidebarHTML(threads, plottedRecords.length)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
     ${footerHTML(page)}</div>`, plottedRecords, sightings };
@@ -268,7 +264,6 @@ function revealNewsArrival(threads, now) {
   lastNewsVisible = true;
   document.querySelector('#live-notice').innerHTML = liveNoticeHTML(now);
   document.querySelector('[data-board-count]').textContent = threads.length;
-  document.querySelector('.sidebar-board').innerHTML = sidebarBoardHTML(threads);
   if (currentView === 'board' && !currentRoute.params.has('thread')) document.querySelector('#content-panel').innerHTML = threadListHTML(threads, currentBase, store.state);
   if (currentView === 'news') document.querySelector('#breaking-article').innerHTML = breakingNewsHTML(store.state);
   announcer.textContent = '市民掲示板に新しい書き込みがあります。';

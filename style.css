@@ -136,11 +136,9 @@ button, a { touch-action: manipulation; }
 .section-nav > a[aria-current] > span { margin-right: auto; }
 .section-nav small { color: #8c9184; font-size: var(--text-caption); font-family: ui-monospace, monospace; }
 .sidebar-note { margin-top: 30px; font-size: var(--text-caption); line-height: 1.95; color: #777f70; }
-.sidebar-note h2, .sidebar-board h2 { font-size: var(--text-caption); font-weight: 600; margin-bottom: 10px; color: #5f6a5b; }
+.sidebar-note h2 { font-size: var(--text-caption); font-weight: 600; margin-bottom: 10px; color: #5f6a5b; }
 .sidebar-note p { margin-bottom: 12px; }
-.sidebar-board { border-top: 1px solid var(--line); margin-top: 28px; padding-top: 18px; }
-.sidebar-board > a { display: block; font-size: var(--text-caption); padding: 7px 0; line-height: 1.8; }
-.sidebar-footnote { margin: 35px 0 0; color: #969b8e; font-size: var(--text-caption); line-height: 2; }
+.sidebar-note .button { padding: 6px 12px; font-size: var(--text-caption); line-height: 1.6; }
 .content-panel { min-width: 0; padding: 22px 25px 35px; }
 .section-label { font-size: var(--text-caption); color: var(--muted); letter-spacing: .1em; margin-bottom: 5px; }
 .new-post-notice { display: flex; gap: 12px; align-items: center; font-size: var(--text-small); padding: 10px 26px; background: #eee8d9; border-bottom: 1px solid #d9d0bd; text-decoration: none; color: #695c43; }
@@ -433,7 +431,7 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
   .viewer-dot { width: 4px; height: 4px; margin-right: 1px; }
   .public-layout { display: block; }
   .site-sidebar { border-right: 0; border-bottom: 1px solid var(--line-dark); padding: 0; }
-  .sidebar-label, .sidebar-note, .sidebar-board, .sidebar-footnote { display: none; }
+  .sidebar-label, .sidebar-note { display: none; }
   .section-nav { display: flex; overflow-x: auto; border: 0; scrollbar-width: thin; padding: 0 9px; }
   .section-nav > a { flex-shrink: 0; min-height: 45px; padding: 10px 11px 8px; font-size: var(--text-small); gap: 6px; border: 0; }
   .section-nav > a[aria-current] { border-bottom: 2px solid var(--red); }
