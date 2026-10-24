@@ -26,7 +26,7 @@ export const CONFIG = {
   quietViewers: { min: 2, max: 10 },
   quietViewerInterval: 1800,
   // 現場掲載後（flood＝拡散演出）の閲覧人数。floodDuration かけて min→max 人へ、curve 乗の曲線で急増する。
-  floodViewers: { min: 11, max: 999, curve: 0.72 },
+  floodViewers: { min: 11, max: 9999, curve: 0.72 },
   floodDuration: 35000,
   // 拡散スレッドの書き込み。掲載直後に initialPosts 件、以後 floodPostInterval ごとに1件ずつ増える。
   floodInitialPosts: 3,

@@ -175,7 +175,7 @@ test('保存状態は再読み込みで復帰し、タイマー基準を保つ',
   store.dispatch({ type: 'publish', report: correctReport }, publishedAt);
   const reloaded = createStore(storage, publishedAt + 60000);
   assert.deepEqual(reloaded.state, store.state);
-  assert.equal(viewerCount(reloaded.state, publishedAt + 60000), 999);
+  assert.equal(viewerCount(reloaded.state, publishedAt + 60000), CONFIG.floodViewers.max);
 });
 test('壊れた保存データは安全に初期化でき、保存機能自体は使い続けられる', () => {
   for (const raw of ['{broken', 'null', '{"version":999}', JSON.stringify({ ...complete(), publishedAt: restoredAt - 1 })]) {
