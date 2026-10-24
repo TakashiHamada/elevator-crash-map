@@ -1,6 +1,6 @@
 // 生成画像を原寸で読み取り登録した座標。画像を差し替える場合は建物・歩道の位置も採り直してください。
 export const MAP_LAYOUT = {
-  "image": "assets/kirihara-realistic-map.png",
+  "image": "assets/misuta-realistic-map.png",
   "width": 1536,
   "height": 1024,
   "imageSha256": "2e7406f52d20f5f24c842badc851c0c7309ace73442d5d7ad7a928e60a58e6b9",
@@ -382,7 +382,7 @@ export const MAP_LAYOUT = {
       ],
       "prominent": true
     },
-    "shiomi-third": {
+    "nagihama-third": {
       "x": 1307,
       "y": 759,
       "width": 25,
@@ -469,7 +469,7 @@ export const MAP_LAYOUT = {
       865
     ],
     [
-      "汐見町",
+      "凪浜町",
       1377,
       628
     ]
@@ -494,38 +494,38 @@ export const MAP_LAYOUT = {
       "kind": "park"
     },
     {
-      "text": "霧川",
+      "text": "三栖川",
       "x": 1189,
       "y": 130,
       "kind": "river",
       "rotate": 90
     },
     {
-      "text": "霧川大橋",
+      "text": "三栖川大橋",
       "x": 1145,
       "y": 263,
       "kind": "bridge"
     },
     {
-      "text": "汐見大橋",
+      "text": "凪浜大橋",
       "x": 1100,
       "y": 556,
       "kind": "bridge"
     },
     {
-      "text": "霧原線",
+      "text": "三栖田線",
       "x": 402,
       "y": 383,
       "kind": "rail"
     },
     {
-      "text": "霧原駅",
+      "text": "三栖田駅",
       "x": 728,
       "y": 412,
       "kind": "station"
     },
     {
-      "text": "霧原港",
+      "text": "三栖田港",
       "x": 1315,
       "y": 926,
       "kind": "water"

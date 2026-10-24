@@ -16,9 +16,14 @@ try { storage = window.localStorage; } catch { /* 保存なしで続行します
 const store = createStore(storage);
 let authenticated = false;
 try { authenticated = sessionStorage.getItem(CONFIG.sessionKey) === 'yes'; } catch { /* 保存を使えない場合はタブ内で認証します。 */ }
+// 魚拓の検索語。魚拓に戻るたびにサイト名を入れ直さなくてよいよう、最後の検索を覚えておく。
+let lastArchiveQuery = '';
+try { lastArchiveQuery = storage?.getItem(CONFIG.archiveQueryKey) ?? ''; } catch { /* 保存を使えない場合はタブ内で覚えます。 */ }
 // 公開サイト（保存世代・現行サイト）を表示中の状態。render() → publicHTML() が毎回設定する。
 let currentRoute, currentBase, currentSnapshot, currentView, mapInstance;
 let lastNewsVisible = false, renderedPhase = '', currentKey = '';
+// 閉鎖→クリア画面の演出のタイマー。演出中は他の描き直しを止め、render() で必ず解除する。
+let closingTimers = [];
 const scrollPositions = new Map();
 const closedViewers = CONFIG.closedViewers.min + Math.floor(Math.random() * (CONFIG.closedViewers.max - CONFIG.closedViewers.min + 1));
 const siteUrl = CONFIG.siteUrl || new URL('./', location.href).href;
@@ -29,6 +34,10 @@ const PAGE_NUMBERS = { closed: 1, archive: 2, admin: 6, live: 7, ending: 8 };
 function setAuthentication(value) {
   authenticated = value;
   try { value ? sessionStorage.setItem(CONFIG.sessionKey, 'yes') : sessionStorage.removeItem(CONFIG.sessionKey); } catch { /* タブ内の認証状態で続行します。 */ }
+}
+function rememberArchiveQuery(query) {
+  lastArchiveQuery = query;
+  try { query ? storage.setItem(CONFIG.archiveQueryKey, query) : storage.removeItem(CONFIG.archiveQueryKey); } catch { /* タブ内の検索語で続行します。 */ }
 }
 function navigate(hash, replace = false) {
   if (replace || location.hash === hash) { history.replaceState(null, '', hash); render(); }
@@ -44,7 +53,7 @@ function login() {
   const digits = CONFIG.password.length;
   modal(`<p class="modal-eyebrow">${escapeHTML(CONFIG.name)}</p><h2 id="modal-title">管理者ログイン</h2>
     <form id="login-form" class="login-form" novalidate><label for="admin-password">パスワード</label>
-    <input id="admin-password" name="password" type="password" inputmode="numeric" pattern="[0-9]{${digits}}" maxlength="${digits}" autocomplete="off" required placeholder="${escapeHTML(CONFIG.passwordHint)}" aria-describedby="password-hint login-error">
+    <input id="admin-password" name="password" type="password" inputmode="numeric" pattern="[0-9]{${digits}}" maxlength="${digits}" autocomplete="off" required placeholder="${escapeHTML(CONFIG.passwordPlaceholder)}" aria-describedby="password-hint login-error">
     <p class="password-hint" id="password-hint">${escapeHTML(CONFIG.passwordHint)}</p><p id="login-error" class="form-status" role="alert"></p>
     <button class="button button--primary" type="submit">ログイン</button></form>`);
   document.querySelector('#admin-password').focus();
@@ -54,18 +63,11 @@ function pageNumberHTML(page) {
 }
 function headerHTML(base = '#/closed', archived = false) {
   return `<header class="site-header"><a class="site-brand" href="${base}" aria-label="三栖田えれ ベータ ホーム">三栖田えれ<span>(β)</span></a>
-    <button class="admin-link" type="button" data-action="login" ${archived ? 'disabled title="アーカイブではログインできません"' : ''}><svg viewBox="0 0 16 18" width="12" height="14" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2M2 7h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>${authenticated && !archived ? '管理者画面' : '管理者ログイン'}</button></header>`;
+    <button class="admin-link" type="button" data-action="login" ${archived ? 'disabled' : ''}><svg viewBox="0 0 16 18" width="12" height="14" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2M2 7h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>${authenticated && !archived ? '管理者画面' : '管理者ログイン'}</button></header>`;
 }
-// フッター中央: 閉鎖ページは魚拓への入口、公開サイトはプロフィールと魚拓、それ以外はサイトへの戻り。
-function footerLinksHTML(page, snapshot) {
-  if (page === PAGE_NUMBERS.closed) return '<span>お困りですか？ 提携システム：</span><a href="#/archive">WEBアーカイブを利用する</a>';
-  if (snapshot) return '<button type="button" data-action="profile">管理人について</button><span class="footer-separator">／</span><a href="#/archive">WEBアーカイブ</a>';
-  return `<a href="#/closed">${escapeHTML(CONFIG.name)}</a>`;
-}
-function footerHTML(page, snapshot = '') {
-  return `<footer class="site-footer"><div class="footer-about"><span>© ${escapeHTML(CONFIG.name)}</span><button type="button" data-action="about">このサイトについて</button></div>
-    <div class="footer-center">${footerLinksHTML(page, snapshot)}</div>
-    ${pageNumberHTML(page)}</footer>`;
+// 全8ページ共通のフッター。ゲームの外側（メタ情報）だけを載せ、物語内のリンクは各ページの本文側に置く。
+function footerHTML(page) {
+  return `<footer class="site-footer"><button class="footer-about" type="button" data-action="about">このページについて</button>${pageNumberHTML(page)}</footer>`;
 }
 function viewersHTML(number) {
   return `<div class="viewer-display${store.state.phase === 'published' && isLive() ? ' viewer-display--busy' : ''}"><span class="viewer-dot" aria-hidden="true"></span>現在 <strong data-viewers>${number}</strong> 人が閲覧中</div>`;
@@ -73,6 +75,7 @@ function viewersHTML(number) {
 function closureHTML() {
   return `<div class="site-shell closure-shell">${headerHTML()}<main class="closure-main"><div class="closure-viewers">${viewersHTML(closedViewers)}</div>
     <div class="closure-notice"><p class="closure-caption">お知らせ</p><h1>当サイト「三栖田えれ」は<br>都合により閉鎖いたしました。</h1><p>長らくのご利用ありがとうございました。</p><div class="closure-signature">${escapeHTML(CONFIG.name)} 管理人</div></div>
+    <p class="closure-archive"><span>お困りですか？ 提携システム：</span><a href="#/archive">WEBアーカイブを利用する</a></p>
     </main>${footerHTML(PAGE_NUMBERS.closed)}</div>`;
 }
 function archiveResultItemHTML({ key, label }, date) {
@@ -104,42 +107,43 @@ function sidebarBoardHTML(threads) {
   return '<h2>市民掲示板より</h2>' + threads.slice(0, 3).map(thread => `<a href="${makeRoute(currentBase, 'board', { thread: thread.id })}">${escapeHTML(thread.title)}</a>`).join('');
 }
 function sidebarHTML(threads, recordCount) {
-  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース'], ['updates', '新着情報'], ['board', '市民掲示板']];
+  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース'], ['updates', '新着情報'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
-  return `<aside class="site-sidebar"><p class="sidebar-label">霧原市のエレベーター事故</p><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}</nav>
+  return `<aside class="site-sidebar"><p class="sidebar-label">三栖田市のエレベーター事故</p><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
     <div class="sidebar-note"><h2>情報をお寄せください</h2><p>町内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="text-link" type="button" data-action="report">事故情報の投稿 →</button></div>
     <div class="sidebar-board">${sidebarBoardHTML(threads)}</div>
     <p class="sidebar-footnote">投稿の際は、被害に遭われた方や<br>ご家族への配慮をお願いします。</p></aside>`;
 }
 function contentHTML(records, plottedRecords, threads, sightings, now) {
   const archived = currentRoute.type === 'snapshot';
-  if (currentView === 'post') return postingHelpHTML(archived);
+  if (currentView === 'post') return postingHelpHTML();
+  if (currentView === 'profile') return `<div class="document-page">${profileHTML(currentSnapshot)}</div>`;
   if (currentView === 'updates') return updatesHTML(currentSnapshot, archived ? snapshotDates(store.state)[currentSnapshot] : localDate(store.state.restoredAt), records);
   if (currentView === 'news') return `<div id="breaking-article">${!archived && newsIsVisible(store.state, now) ? breakingNewsHTML(store.state) : ''}</div>${newsIndexHTML(records, currentBase)}`;
   if (currentView === 'board') {
     const thread = threads.find(item => item.id === currentRoute.params.get('thread'));
     return thread ? threadHTML(thread, currentBase, store.state) : threadListHTML(threads, currentBase, store.state);
   }
-  return mapHTML(plottedRecords, currentBase, sightings);
+  return mapHTML(plottedRecords, sightings);
 }
 function publicHTML(now) {
   const archived = currentRoute.type === 'snapshot';
   const dates = snapshotDates(store.state);
   currentSnapshot = archived ? currentRoute.snapshot : 'live';
   currentBase = archived ? '#/archive/' + currentSnapshot : '#/live';
-  currentView = ['map', 'board', 'post', 'news', 'updates'].includes(currentRoute.params.get('view')) ? currentRoute.params.get('view') : 'map';
+  currentView = ['map', 'board', 'post', 'news', 'updates', 'profile'].includes(currentRoute.params.get('view')) ? currentRoute.params.get('view') : 'map';
   const records = archived ? recordsForSnapshot(currentSnapshot, dates) : ACCIDENTS;
   const plottedRecords = mapRecords(records, store.state, !archived && store.state.phase === 'published');
   const threads = visibleThreads(currentSnapshot, store.state, now);
   const sightings = sightingsForSnapshot(currentSnapshot, dates);
   const page = archived ? SNAPSHOTS.find(snapshot => snapshot.key === currentSnapshot).page : PAGE_NUMBERS.live;
   const archiveListLink = `#/archive?q=${encodeURIComponent(CONFIG.name)}`;
-  const archivedBar = archived ? `<div class="archive-capture-bar"><a href="${archiveListLink}"><span aria-hidden="true">↶</span> インターネット魚拓</a><span>${dateLabel(dates[currentSnapshot])} の保存ページ<span class="capture-readonly">／閲覧専用</span></span><a href="${archiveListLink}">保存一覧へ戻る →</a></div>` : '';
+  const archivedBar = archived ? `<div class="archive-capture-bar"><a href="${archiveListLink}"><span aria-hidden="true">←</span> 保存一覧へ戻る</a><span>${dateLabel(dates[currentSnapshot])} の保存ページ<span class="capture-readonly">／閲覧専用</span></span></div>` : '';
   return { html: `<div class="site-shell public-shell">${archivedBar}${headerHTML(currentBase, archived)}
-    <div class="site-status-line"><span>霧原市の事故情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
+    <div class="site-status-line"><span>三栖田市の事故情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
     <div id="live-notice">${liveNoticeHTML(now)}</div>
     <main class="public-layout">${sidebarHTML(threads, plottedRecords.length)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
-    ${footerHTML(page, currentSnapshot)}</div>`, plottedRecords, sightings };
+    ${footerHTML(page)}</div>`, plottedRecords, sightings };
 }
 // 管理者画面下部の操作。閉鎖中は「復元」、現場掲載後は「再閉鎖」（クリア条件）、その間は公開中の案内。
 function adminOperationHTML(phase) {
@@ -152,11 +156,11 @@ function adminHTML() {
   const memoHTML = ADMIN_MEMO.map(({ text, emphasis }) => `<p class="${emphasis ? 'memo-' + emphasis : ''}">${escapeHTML(text)}</p>`).join('');
   return `<div class="admin-shell"><header class="admin-header"><a href="${siteEntryHash(state)}">三栖田えれ<span>(β)</span><small>管理者ページ</small></a><button type="button" data-action="logout">ログアウト</button></header>
     <main class="admin-layout"><aside class="admin-sidebar"><p>CONTROL PANEL</p><a href="#/admin" aria-current="page">考察メモ</a><button disabled>投稿の承認</button><button disabled>アクセス解析</button><button disabled>登録情報</button><button disabled>システム設定</button><div class="admin-site-state"><span>サイトの状態</span><strong>${state.phase === 'closed' ? '閉鎖中' : '公開中'}</strong></div></aside>
-    <div class="admin-content"><div class="admin-breadcrumb">管理者専用 / 個人メモ</div><article class="admin-memo" id="admin-note"><p class="admin-note-label">PRIVATE NOTE</p><h1>管理人の考察メモ</h1>
+    <div class="admin-content"><div class="admin-breadcrumb">管理者専用 / 個人メモ</div><article class="admin-memo" id="admin-note"><p class="admin-note-label">PRIVATE NOTE</p><h1>考察メモ</h1>
       ${memoHTML}
     </article><section class="admin-operation" aria-label="サイトの公開設定"><h2>サイトの公開設定</h2>
       ${adminOperationHTML(state.phase)}
-    </section></div></main><footer class="admin-footer"><span>${escapeHTML(CONFIG.name)} / 管理者専用</span>${pageNumberHTML(PAGE_NUMBERS.admin)}</footer></div>`;
+    </section></div></main>${footerHTML(PAGE_NUMBERS.admin)}</div>`;
 }
 function endingHTML() {
   const share = new URL('https://twitter.com/intent/tweet');
@@ -170,15 +174,39 @@ function endingHTML() {
       <div class="game-wordmark"><small>マジックリアリズム・パズルアドベンチャー</small><strong>ミスターエレベーター</strong><span>MR. ELEVATOR</span></div>
       <p class="release-line">${escapeHTML(CONFIG.releaseLabel)}</p><a class="store-button" href="${escapeHTML(CONFIG.promotionUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(CONFIG.promotionLabel)} <span aria-hidden="true">↗</span></a>
     </section><p class="ending-fiction">このゲームは「ミスターエレベーター」の番外編WebARGです。<br>登場する地名・人物・事件はすべて架空です。</p><button class="replay-button" data-action="replay">最初から遊ぶ</button></main>
-    <footer class="ending-footer"><span>${escapeHTML(CONFIG.name)}</span>${pageNumberHTML(PAGE_NUMBERS.ending)}</footer></div>`;
+    ${footerHTML(PAGE_NUMBERS.ending)}</div>`;
+}
+function stopClosingTransition() {
+  closingTimers.forEach(clearTimeout); closingTimers = [];
+  app.inert = false;
+}
+// サイト閉鎖後、1ページ目の閉鎖のお知らせを closingNoticeHold だけ見せ、closingFadeDuration かけて暗転してから8ページ目へ進む。
+// 進行は呼び出し前に complete として保存済みなので、途中で再読み込みしても8ページ目から再開できる。
+function playClosingTransition() {
+  stopClosingTransition();
+  mapInstance?.destroy(); mapInstance = null;
+  if (dialog.open) dialog.close();
+  app.innerHTML = closureHTML() + '<div class="closing-curtain" aria-hidden="true"></div>';
+  app.inert = true;
+  document.body.dataset.screen = 'closed';
+  document.title = '閉鎖のお知らせ | ' + CONFIG.name;
+  document.querySelector('meta[name="theme-color"]').content = '#f5f4ee';
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  const curtain = app.querySelector('.closing-curtain');
+  curtain.style.setProperty('--closing-fade', CONFIG.closingFadeDuration + 'ms');
+  closingTimers.push(setTimeout(() => {
+    curtain.classList.add('is-dark');
+    closingTimers.push(setTimeout(() => navigate('#/ending'), CONFIG.closingFadeDuration));
+  }, CONFIG.closingNoticeHold));
 }
 function render(options = {}) {
+  stopClosingTransition();
   const previousScroll = window.scrollY;
   if (currentKey) scrollPositions.set(currentKey, previousScroll);
   mapInstance?.destroy(); mapInstance = null;
   if (dialog.open) dialog.close();
   let requested = parseRoute(location.hash);
-  const resolved = resolveRoute(requested, store.state, authenticated);
+  const resolved = resolveRoute(requested, store.state, authenticated, lastArchiveQuery);
   if (resolved.redirect) { history.replaceState(null, '', resolved.redirect); requested = parseRoute(resolved.redirect); }
   currentRoute = requested; currentKey = location.hash;
   currentBase = ''; currentSnapshot = ''; currentView = '';
@@ -186,7 +214,11 @@ function render(options = {}) {
   document.body.dataset.screen = currentRoute.type;
   let publicView;
   if (currentRoute.type === 'closed') app.innerHTML = closureHTML();
-  if (currentRoute.type === 'archive') app.innerHTML = archiveHTML(currentRoute.params.get('q') ?? '');
+  if (currentRoute.type === 'archive') {
+    const query = currentRoute.params.get('q') ?? '';
+    if (query.trim() && query !== lastArchiveQuery) rememberArchiveQuery(query);
+    app.innerHTML = archiveHTML(query);
+  }
   if (currentRoute.type === 'admin') app.innerHTML = adminHTML();
   if (currentRoute.type === 'ending') app.innerHTML = endingHTML();
   if (['snapshot', 'live'].includes(currentRoute.type)) { publicView = publicHTML(now); app.innerHTML = publicView.html; }
@@ -219,10 +251,7 @@ function render(options = {}) {
   if (resolved.login) login();
 }
 function openReport() {
-  if (currentRoute.type === 'snapshot') {
-    modal('<h2 id="modal-title">保存されたページです</h2><p>アーカイブでは投稿機能は利用できません。</p><p>投稿方法は左側のメニューからご覧いただけます。</p>');
-    return;
-  }
+  // 保存ページでは当時のボタンが残っているだけで、押しても何も起きない。
   if (!isLive()) return;
   if (store.state.phase === 'published') { modal('<h2 id="modal-title">事故情報を掲載しました</h2><p>お寄せいただいた事故情報は、地図に掲載されています。</p>'); return; }
   modal(reportHTML());
@@ -271,9 +300,8 @@ document.addEventListener('click', async event => {
   if (action === 'dismiss') { dialog.close(); return; }
   if (action === 'login') { authenticated ? navigate('#/admin') : login(); return; }
   if (action === 'logout') { setAuthentication(false); navigate(siteEntryHash(store.state)); return; }
-  if (action === 'profile') { modal(profileHTML(currentSnapshot)); return; }
   if (action === 'about') {
-    modal('<h2 id="modal-title">このサイトについて</h2>' + ABOUT_PARAGRAPHS.map(text => `<p>${escapeHTML(text)}</p>`).join(''));
+    modal('<h2 id="modal-title">このページについて</h2>' + ABOUT_PARAGRAPHS.map(text => `<p>${escapeHTML(text)}</p>`).join(''));
     return;
   }
   if (action === 'report') { openReport(); return; }
@@ -281,14 +309,14 @@ document.addEventListener('click', async event => {
     store.dispatch({ type: 'restore' }); navigate('#/live'); return;
   }
   if (action === 'close-site' && authenticated && currentRoute.type === 'admin' && store.state.phase === 'published') {
-    store.dispatch({ type: 'close' }); navigate('#/ending'); return;
+    store.dispatch({ type: 'close' }); playClosingTransition(); return;
   }
   if (action === 'replay') {
     modal('<h2 id="modal-title">最初から遊びますか？</h2><p>このブラウザーの進行を消して、閉鎖のお知らせからもう一度始めます。</p><div class="modal-actions"><button class="button" data-action="dismiss">戻る</button><button class="button button--primary" data-action="confirm-replay">最初から遊ぶ</button></div>');
     return;
   }
   if (action === 'confirm-replay' && currentRoute.type === 'ending') {
-    store.reset(); setAuthentication(false); scrollPositions.clear(); navigate('#/closed'); return;
+    store.reset(); setAuthentication(false); rememberArchiveQuery(''); scrollPositions.clear(); navigate('#/closed'); return;
   }
   if (action === 'copy-news') {
     const result = button.closest('.article-bottom').querySelector('.copy-result');
@@ -344,7 +372,10 @@ dialog.addEventListener('click', event => {
 window.addEventListener('hashchange', () => render());
 // 別タブで進行が変わったら追従する（sessionStorage はタブごとなので監視しない）。
 window.addEventListener('storage', event => {
-  if (event.key === CONFIG.storageKey || event.key === null) { store.sync(); render({ preserveScroll: true }); }
+  if (event.key !== CONFIG.storageKey && event.key !== null) return;
+  // 演出中も別タブのリプレイなどは取り込む。描画だけを保留し、演出後のルート判定に最新の進行を使う。
+  store.sync();
+  if (!closingTimers.length) render({ preserveScroll: true });
 });
 document.addEventListener('visibilitychange', updateLiveScreen);
 render();

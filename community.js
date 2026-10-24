@@ -1,7 +1,7 @@
 // 公開サイト（魚拓の保存世代と復元後の現行サイト）の画面部品のHTMLと、共通の表示用ヘルパー。
 // 文面の正典は board-data.js / data.js。ここでは並べ方だけを決め、データ由来の文字列は必ず escapeHTML を通す。
 import { CONFIG, PROFILE, NEWS, UPDATE_NOTES } from './board-data.js';
-import { BUILDINGS, TOWNS, CHOME_OPTIONS, LOT_OPTIONS, addressOf, getBuilding } from './data.js';
+import { TOWNS, CHOME_OPTIONS, LOT_OPTIONS, getBuilding } from './data.js';
 import { localDate } from './game-state.js';
 
 export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/gu, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -22,7 +22,7 @@ export function articleHTML(state, compact = false) {
     <div class="article-byline"><span>${escapeHTML(NEWS.publisher)}</span><time>${dateLabel(localDate(postedAt))} ${timeLabel(postedAt)}</time></div>
     <h3>${escapeHTML(NEWS.title)}</h3>
     ${NEWS.paragraphs.map(text => `<p>${escapeHTML(text)}</p>`).join('')}
-    <div class="article-bottom"><span>社会／霧原市</span><button type="button" data-action="copy-news">記事本文をコピー</button><span class="copy-result" role="status"></span></div>
+    <div class="article-bottom"><span>社会／三栖田市</span><button type="button" data-action="copy-news">記事本文をコピー</button><span class="copy-result" role="status"></span></div>
   </article>`;
 }
 /** ニュース画面の先頭に出す速報（ニュース到着後の現行サイトのみ）。 */
@@ -36,7 +36,7 @@ export function threadListHTML(threads, base, state) {
     return `<a class="thread-row${thread.dynamic ? ' thread-row--new' : ''}" href="${makeRoute(base, 'board', { thread: thread.id })}" data-thread-id="${thread.id}">
       <span><span class="thread-index">${thread.dynamic ? '新' : '›'}</span><strong>${escapeHTML(thread.title)}</strong><small>${updated}</small></span><span class="thread-replies">${thread.posts.length}</span></a>`;
   }).join('');
-  return `<div class="board-introduction"><h2>霧原市 市民掲示板</h2><p>エレベーターのこと、町で聞いた話など。ご自由にどうぞ。</p></div>
+  return `<div class="board-introduction"><h2>三栖田市 市民掲示板</h2><p>エレベーターのこと、町で聞いた話など。ご自由にどうぞ。</p></div>
     <p class="board-rules">個人情報の書き込み、無断転載はおやめください。</p>
     <div class="thread-table"><div class="thread-table-head"><span>スレッド一覧</span><span>書き込み</span></div>
     ${rows}
@@ -70,7 +70,7 @@ export function threadHTML(thread, base, state) {
 export function profileHTML(snapshot) {
   const facts = snapshot === 'middle' ? `<dl class="profile-facts">${PROFILE.facts.map(([key, value]) => `<div><dt>${escapeHTML(key)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>` : '';
   const editedNote = snapshot === 'latest' || snapshot === 'live' ? `<p class="profile-edited">${escapeHTML(PROFILE.edited)}</p>` : '';
-  return `<div class="profile-heading"><span class="profile-avatar" aria-hidden="true">管</span><div><p>${escapeHTML(CONFIG.name)}</p><h2 id="modal-title">管理人について</h2></div></div>
+  return `<div class="profile-heading"><span class="profile-avatar" aria-hidden="true">管</span><div><p>${escapeHTML(CONFIG.name)}</p><h2>管理人について</h2></div></div>
     <p class="preserve-lines">${escapeHTML(snapshot === 'oldest' ? PROFILE.oldest : PROFILE.common)}</p>
     ${facts}
     ${editedNote}`;
@@ -90,29 +90,28 @@ export function reportHTML() {
     </form>`;
 }
 /** 地図画面の枠。plottedRecords は地図に出す事故（掲載済みなら投稿分を含む。map.js の mapRecords で作る）。 */
-export function mapHTML(plottedRecords, base, sightings = []) {
+export function mapHTML(plottedRecords, sightings = []) {
   const recordCount = plottedRecords.length;
-  return `<div class="map-heading"><div><p class="section-label">霧原市／事故記録</p><h2>エレベーター事故マップ</h2></div><span class="record-total"><strong>${recordCount}</strong> 件</span></div>
-    <div class="map-stage" id="map-stage" tabindex="0" role="region" aria-label="霧原市の地図。矢印キーで移動、プラス・マイナスで拡大縮小できます。">
+  return `<div class="map-heading"><div><p class="section-label">三栖田市／事故記録</p><h2>エレベーター事故マップ</h2></div><span class="record-total"><strong>${recordCount}</strong> 件</span></div>
+    <div class="map-stage" id="map-stage" tabindex="0" role="region" aria-label="三栖田市の地図。矢印キーで移動、プラス・マイナスで拡大縮小できます。">
       <div class="map-world" id="map-world"></div>
-      <div class="map-location"><span>霧原市</span><small>Kirihara</small></div>
+      <div class="map-location"><span>三栖田市</span><small>Misuta</small></div>
       <div class="map-controls"><button type="button" data-map-action="in" aria-label="地図を拡大">＋</button><button type="button" data-map-action="out" aria-label="地図を縮小">−</button><button type="button" data-map-action="reset" aria-label="市全域を表示">⌖</button></div>
       <div class="map-north" aria-hidden="true">N<span>↑</span></div>
-      <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${recordCount}</button><button type="button" data-map-layer="sightings" aria-pressed="true" ${sightings.length ? '' : 'disabled'}><i class="legend-sighting" aria-hidden="true">目</i> 目撃情報 ${sightings.length}</button></div>
+      <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${recordCount}</button><button type="button" data-map-layer="sightings" aria-pressed="true" ${sightings.length ? '' : 'disabled'}><i class="legend-sighting" aria-hidden="true">目</i> 目撃情報 ${sightings.length}</button><span class="legend-facility"><i aria-hidden="true"></i> 施設情報</span></div>
       <div class="map-attribution">地図・施設情報：${escapeHTML(CONFIG.name)}　<span id="map-scale">500 m</span></div>
       <aside id="map-detail" class="map-detail" aria-labelledby="detail-title" hidden></aside>
     </div>
-    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。拡大すると施設名と詳しい番地を確認できます。</p><button class="text-link" data-action="report">事故情報の投稿 →</button></div>
-    <details class="facility-index"><summary>地図の施設を一覧で見る</summary><div>${BUILDINGS.map(place => `<a href="${makeRoute(base, 'map', { building: place.id })}"><span>${escapeHTML(place.name)}</span><small>${escapeHTML(addressOf(place))}</small></a>`).join('')}</div></details>`;
+    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。色の付いた建物を押すと施設情報を確認できます。拡大すると施設名と詳しい番地も表示されます。</p><button class="text-link" data-action="report">事故情報の投稿 →</button></div>`;
 }
-export function postingHelpHTML(isArchive) {
+export function postingHelpHTML() {
   return `<div class="document-page"><p class="section-label">ご利用案内</p><h2>投稿方法</h2>
     <p>町内のエレベーター事故について、情報をお持ちの方はご協力ください。</p>
     <h3>1. 事故のあった場所を確認する</h3><p>地図で所在地を確認し、投稿画面で「地名」「丁目」「番地」の正しい組み合わせを選んでください。建物名を押すと、所在地と施設情報が表示されます。</p>
     <h3>2. ニュース記事を添える</h3><p>情報の出典として、事故を伝えるニュース記事のタイトル、または記事本文を貼り付けてください。出典の分からない情報は掲載できません。</p>
     <h3>3. 管理人による確認</h3><p>確認できた情報を地図に掲載します。一部の地点は、投稿を即時反映するよう設定しています。</p>
     <p class="document-note">個人の名前や連絡先など、事故と関係のない個人情報は入力しないでください。</p>
-    ${isArchive ? '<p class="archive-warning">このページはアーカイブです。投稿機能は利用できません。</p>' : '<button class="button button--primary" data-action="report">事故情報を投稿する</button>'}</div>`;
+    <button class="button button--primary" data-action="report">事故情報を投稿する</button></div>`;
 }
 /** 「新着情報」画面。snapshot は保存世代か 'live'、date はその世代の更新日。 */
 export function updatesHTML(snapshot, date, records) {

@@ -8,12 +8,13 @@ import { localDate } from './game-state.js';
 
 export function mapSVG() {
   const config = MAP_CONFIG;
-  return `<svg class="city-map" viewBox="0 0 ${config.width} ${config.height}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <image class="map-basemap" href="${config.image}" x="0" y="0" width="${config.width}" height="${config.height}" preserveAspectRatio="xMidYMid meet"/>
-    <g class="geographic-labels">${MAP_LAYOUT.geographicLabels.map(label => `<text x="${label.x}" y="${label.y}" class="${label.kind}-label"${label.rotate ? ` transform="rotate(${label.rotate} ${label.x} ${label.y})"` : ''}>${escapeHTML(label.text)}</text>`).join('')}</g>
-    <g class="town-labels">${TOWN_LABELS.map(([name, x, y]) => `<text x="${x}" y="${y}">${escapeHTML(name)}</text>`).join('')}</g>
-    <g class="block-labels">${MAP_LAYOUT.blockLabels.map(([name, x, y]) => `<text x="${x}" y="${y}">${escapeHTML(name)}</text>`).join('')}</g>
-    <g class="building-layer">${BUILDINGS.map(place => `<g class="map-building${place.prominent ? ' map-building--prominent' : ''}" data-building-id="${place.id}">
+  // 施設一覧を設けず、地図上の施設そのものをキーボード・支援技術から選べるようにする。
+  return `<svg class="city-map" viewBox="0 0 ${config.width} ${config.height}" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="施設情報">
+    <image class="map-basemap" href="${config.image}" x="0" y="0" width="${config.width}" height="${config.height}" preserveAspectRatio="xMidYMid meet" aria-hidden="true"/>
+    <g class="geographic-labels" aria-hidden="true">${MAP_LAYOUT.geographicLabels.map(label => `<text x="${label.x}" y="${label.y}" class="${label.kind}-label"${label.rotate ? ` transform="rotate(${label.rotate} ${label.x} ${label.y})"` : ''}>${escapeHTML(label.text)}</text>`).join('')}</g>
+    <g class="town-labels" aria-hidden="true">${TOWN_LABELS.map(([name, x, y]) => `<text x="${x}" y="${y}">${escapeHTML(name)}</text>`).join('')}</g>
+    <g class="block-labels" aria-hidden="true">${MAP_LAYOUT.blockLabels.map(([name, x, y]) => `<text x="${x}" y="${y}">${escapeHTML(name)}</text>`).join('')}</g>
+    <g class="building-layer">${BUILDINGS.map(place => `<g class="map-building${place.prominent ? ' map-building--prominent' : ''}" data-building-id="${place.id}" tabindex="0" role="button" aria-label="${escapeHTML(place.name)}の施設情報" aria-controls="map-detail" aria-expanded="false">
       <rect x="${place.box[0]}" y="${place.box[1]}" width="${place.width}" height="${place.height}" rx="1"/>
       <text x="${place.x}" y="${place.box[3] + 12}">${escapeHTML(place.name)}</text>
     </g>`).join('')}</g>
@@ -242,8 +243,19 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   }
   stage.addEventListener('pointerup', endPointer, { signal });
   stage.addEventListener('pointercancel', endPointer, { signal });
+  // 拡大・移動で表示枠の外にある施設も、Tabで選んだときは見える位置へ寄せる。
+  stage.addEventListener('focusin', event => {
+    const building = event.target.closest('.map-building');
+    if (!building) return;
+    const place = getBuilding(building.dataset.buildingId);
+    if (place) centerOn(place.x, place.y);
+  }, { signal });
   stage.addEventListener('keydown', event => {
     if (event.key === 'Escape' && selectedId) { closeDetail(true); return; }
+    const building = event.target.closest('.map-building');
+    if (building && ['Enter', ' '].includes(event.key)) {
+      event.preventDefault(); selectBuilding(building.dataset.buildingId); return;
+    }
     if (event.target !== stage) return;
     const step = config.keyboardPanPixels;
     const pan = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[event.key];

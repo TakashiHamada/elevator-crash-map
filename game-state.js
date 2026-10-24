@@ -115,7 +115,9 @@ export function siteEntryHash(state) {
   return state.phase === 'closed' ? '#/closed' : '#/live';
 }
 // 現在の進行で表示できないルートを振り分ける。{ redirect, login? } か { route } を返す。
-export function resolveRoute(route, state, authenticated) {
+// lastArchiveQuery は魚拓で最後に検索した語。検索語なしで魚拓を開いたら、その検索結果へ振り替える。
+export function resolveRoute(route, state, authenticated, lastArchiveQuery = '') {
+  if (route.type === 'archive' && !route.params.has('q') && lastArchiveQuery) return { redirect: '#/archive?q=' + encodeURIComponent(lastArchiveQuery) };
   if (route.type === 'home') return { redirect: state.phase === 'complete' ? '#/ending' : siteEntryHash(state) };
   if (state.phase === 'complete' && ['closed', 'live', 'admin'].includes(route.type)) return { redirect: '#/ending' };
   if (route.type === 'closed' && state.phase !== 'closed') return { redirect: '#/live' };
