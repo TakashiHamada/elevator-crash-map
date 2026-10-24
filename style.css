@@ -315,7 +315,6 @@ body:has(#site-dialog[open]) { overflow: hidden; }
 .dialog-close { position: absolute; right: 8px; top: 7px; border: 0; background: none; width: 35px; height: 35px; color: #7c8972; font-size: 1.625rem; }
 #dialog-content > h2, .profile-heading h2 { font-size: 1.4375rem; font-weight: 500; line-height: 1.8; margin: 0 15px 20px 0; }
 #dialog-content > p { line-height: 2; }
-.dialog-bottom { margin-top: 25px; padding-top: 14px; border-top: 1px solid var(--line); font-size: var(--text-small); text-align: right; }
 .modal-eyebrow { font-size: var(--text-caption); color: #8d9980; margin-bottom: 4px; }
 .login-form { display: grid; }
 .login-form label { margin-bottom: 9px; font-size: var(--text-small); color: #718163; }
@@ -347,6 +346,25 @@ body:has(#site-dialog[open]) { overflow: hidden; }
 
 /* 管理者画面 */
 body[data-screen="admin"], body[data-screen="ending"] { background: #101516; color: #c2ccc4; }
+/* ダイアログは .admin-shell の外にあるため、画面種別から管理者用の配色を適用する。 */
+body[data-screen="admin"] #site-dialog {
+  --ink: #c2ccc4;
+  --white: #18211c;
+  --line: #344238;
+  --line-dark: #455248;
+  --link: #b3c5b9;
+  border-color: var(--line-dark);
+  box-shadow: 0 12px 40px #0006;
+  color-scheme: dark;
+}
+body[data-screen="admin"] #site-dialog::backdrop { background: #080d0bb3; }
+body[data-screen="admin"] #modal-title { color: #e0e8df; font-weight: 400; }
+body[data-screen="admin"] #dialog-content > p { color: #adbcb0; }
+body[data-screen="admin"] #site-dialog .dialog-close { color: #98aa9c; }
+body[data-screen="admin"] #site-dialog :focus-visible { outline-color: #e7ece7; }
+body[data-screen="admin"] #site-dialog .text-link:hover { color: #e0e8df; }
+body[data-screen="admin"] #site-dialog .button { background: transparent; }
+body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { background: #26362c; }
 .admin-shell, .ending-shell { min-height: 100dvh; --link: #b3c5b9; }
 .admin-shell a, .ending-shell a { color: var(--link); }
 .admin-shell :focus-visible, .ending-shell :focus-visible { outline-color: #e7ece7; }
@@ -372,10 +390,11 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
 .admin-operation { border-top: 1px solid #415245; padding-top: 30px; margin-top: 55px; }
 .admin-operation h2 { font-size: var(--body-size); font-weight: 400; color: #b4c7b9; margin-bottom: 15px; }
 .admin-operation > p { font-size: var(--text-small); color: #7e9483; }
-.admin-operation-button { margin-top: 12px; color: #cedcd0; background: #283c2e; border: 1px solid #65816b; min-width: 200px; padding: 13px 27px; font-size: var(--body-size); }
-.admin-operation-button:hover { background: #364e3d; }
-.admin-operation-button--close { border-color: #92695e; background: #392c27; color: #dbb8a8; }
-.admin-operation-button--close:hover { background: #50382f; }
+.admin-operation-button { margin-top: 12px; min-width: 200px; padding: 13px 27px; font-size: var(--body-size); }
+.admin-operation-button, body[data-screen="admin"] #site-dialog .button--primary { color: #cedcd0; background: #283c2e; border: 1px solid #65816b; }
+.admin-operation-button:hover, body[data-screen="admin"] #site-dialog .button--primary:hover { background: #364e3d; }
+.admin-operation-button--close, body[data-screen="admin"] #site-dialog [data-action="confirm-close-site"] { border-color: #92695e; background: #392c27; color: #dbb8a8; }
+.admin-operation-button--close:hover, body[data-screen="admin"] #site-dialog [data-action="confirm-close-site"]:hover { background: #50382f; }
 .admin-public-message > span { color: #839e75; font-size: var(--text-caption); margin-right: 5px; }
 .admin-operation > a { font-size: var(--text-small); }
 .admin-shell .site-footer, .ending-shell .site-footer { border-top-color: #29382e; color: #5b7162; }
