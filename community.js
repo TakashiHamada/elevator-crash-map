@@ -33,8 +33,9 @@ export function threadListHTML(threads, base, state) {
   const readonlyNote = base.includes('/archive/') ? '保存された掲示板です。新しい書き込みはできません。' : '掲示板への新規書き込みは、現在受け付けていません。事故情報は「事故情報を投稿する」からお寄せください。';
   const rows = threads.map(thread => {
     const updated = thread.dynamic ? dateLabel(localDate(state.restoredAt)) + '　更新' : dateLabel(thread.date);
+    const hintTitle = (base === '#/archive/latest' && thread.id === 'profile') || (['#/archive/latest', '#/archive/middle'].includes(base) && thread.id === 'purpose') || (base === '#/live' && thread.id === 'privacy');
     return `<a class="thread-row${thread.dynamic ? ' thread-row--new' : ''}" href="${makeRoute(base, 'board', { thread: thread.id })}" data-thread-id="${thread.id}">
-      <span><span class="thread-index">${thread.dynamic ? '新' : '›'}</span><strong>${escapeHTML(thread.title)}</strong><small>${updated}</small></span><span class="thread-replies">${thread.posts.length}</span></a>`;
+      <span><span class="thread-index">${thread.dynamic ? '新' : '›'}</span><strong${hintTitle ? ' data-hint="text"' : ''}>${escapeHTML(thread.title)}</strong><small>${updated}</small></span><span class="thread-replies">${thread.posts.length}</span></a>`;
   }).join('');
   return `<div class="board-introduction"><h2>三栖田市 市民掲示板</h2><p>エレベーターのこと、町で聞いた話など。ご自由にどうぞ。</p></div>
     <p class="board-rules">個人情報の書き込み、無断転載はおやめください。</p>
@@ -51,24 +52,49 @@ function postClock(thread, index, state) {
   const { startHour, startMinute, minuteStep } = CONFIG.archivedPostClock;
   return startHour + ':' + String(startMinute + index * minuteStep).padStart(2, '0');
 }
-export function postHTML(post, index, thread, state) {
+export function postHTML(post, index, thread, state, base = '') {
   const day = thread.dynamic ? localDate(state.restoredAt) : thread.date;
   // 掲示板らしく見せるための表示用ID。スレッドと投稿番号から毎回同じ値になるように作る。
   const postId = (thread.id.slice(0, 3) + (index * 139 + 42).toString(36)).padEnd(8, '0');
+  const hintBody = ['#/archive/latest', '#/archive/middle'].includes(base) || (base === '#/live' && thread.id === 'privacy');
+  const body = hintBody ? hintTextHTML(post.body, post.hintText) : escapeHTML(post.body);
   return `<article class="board-post" id="post-${index + 1}">
     <div class="post-meta"><span class="post-number">${index + 1}</span> ： <strong class="${post.name === '管理人' ? 'post-admin' : ''}">${escapeHTML(post.name)}</strong> <time>${escapeHTML(day.replaceAll('-', '/'))} ${postClock(thread, index, state)}</time><span class="post-id">ID:${postId}</span></div>
-    ${post.special === 'news' ? articleHTML(state, true) : `<p>${escapeHTML(post.body)}</p>`}
+    ${post.special === 'news' ? articleHTML(state, true) : `<p${base === '#/archive/latest' && thread.id === 'profile' && post.name === '管理人' ? ' data-hint="text"' : ''}>${body}</p>`}
   </article>`;
 }
 export function threadHTML(thread, base, state) {
   return `<div class="thread-nav"><a href="${makeRoute(base, 'board')}">← スレッド一覧</a><span data-post-count>${thread.posts.length}件の書き込み</span></div>
     <h2 class="thread-title">${escapeHTML(thread.title)}</h2>
-    <div class="thread-posts" data-thread-posts="${thread.id}">${thread.posts.map((post, index) => postHTML(post, index, thread, state)).join('')}</div>
+    <div class="thread-posts" data-thread-posts="${thread.id}">${thread.posts.map((post, index) => postHTML(post, index, thread, state, base)).join('')}</div>
     <div class="thread-bottom"><a href="${makeRoute(base, 'board')}">スレッド一覧へ戻る</a><span>書き込みは受け付けていません。</span></div>`;
+}
+// データで指定した部分を赤文字用の要素で囲む。本文とヒント文字列を別々にエスケープする。
+function hintTextHTML(value, hintText) {
+  const hints = (Array.isArray(hintText) ? hintText : [hintText]).filter(Boolean)
+    .map(text => ({ text, index: value.indexOf(text) }))
+    .filter(hint => hint.index >= 0).sort((a, b) => a.index - b.index);
+  const parts = [];
+  let cursor = 0;
+  for (const hint of hints) {
+    if (hint.index < cursor) continue;
+    parts.push(escapeHTML(value.slice(cursor, hint.index)), `<span data-hint="text">${escapeHTML(hint.text)}</span>`);
+    cursor = hint.index + hint.text.length;
+  }
+  parts.push(escapeHTML(value.slice(cursor)));
+  return parts.join('');
+}
+// プロフィールの補足指定に従い、ヒント部分や通常の外部検索リンクを組み立てる。
+function profileFactHTML(value, { hintText, searchQuery } = {}) {
+  const text = hintTextHTML(value, hintText);
+  if (!searchQuery) return text;
+  const search = new URL('https://www.google.com/search');
+  search.searchParams.set('q', searchQuery);
+  return `<a href="${escapeHTML(search.href)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(searchQuery)}をGoogleで検索（別タブ）">${text}</a>`;
 }
 // snapshot ごとに出す情報が違う: middle だけ数字の手掛かり（facts）を載せ、latest 以降は「修正しました」の注記を出す。
 export function profileHTML(snapshot) {
-  const facts = snapshot === 'middle' ? `<dl class="profile-facts">${PROFILE.facts.map(([key, value]) => `<div><dt>${escapeHTML(key)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>` : '';
+  const facts = snapshot === 'middle' ? `<dl class="profile-facts">${PROFILE.facts.map(([key, value, options]) => `<div><dt>${escapeHTML(key)}</dt><dd>${profileFactHTML(value, options)}</dd></div>`).join('')}</dl>` : '';
   const editedNote = snapshot === 'latest' || snapshot === 'live' ? `<p class="profile-edited">${escapeHTML(PROFILE.edited)}</p>` : '';
   return `<div class="profile-heading"><img class="profile-avatar" src="assets/admin-avatar.webp" alt="管理人のアイコン" width="53" height="53"><div><p>${escapeHTML(CONFIG.name)}</p><h2>管理人について</h2></div></div>
     <p class="preserve-lines">${escapeHTML(snapshot === 'oldest' ? PROFILE.oldest : PROFILE.common)}</p>
@@ -114,7 +140,7 @@ export function postingHelpHTML(archived = false) {
 /** 「更新履歴」画面。snapshot は保存世代か 'live'、date はその世代の更新日。 */
 export function updatesHTML(snapshot, date, records) {
   return `<div class="document-page"><p class="section-label">更新履歴</p><h2>更新履歴</h2><dl class="updates">
-    <div><dt>${dateLabel(date)}</dt><dd>${escapeHTML(UPDATE_NOTES[snapshot])}</dd></div>
+    <div><dt>${dateLabel(date)}</dt><dd${snapshot === 'latest' ? ' data-hint="text"' : ''}>${escapeHTML(UPDATE_NOTES[snapshot])}</dd></div>
     ${records.slice(0, 5).map(item => `<div><dt>${dateLabel(item.date)}</dt><dd>事故記録 ${escapeHTML(item.id)} を掲載しました。</dd></div>`).join('')}
     </dl><p>情報の訂正・追加は「事故情報を投稿する」からお寄せください。</p></div>`;
 }

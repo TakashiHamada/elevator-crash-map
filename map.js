@@ -66,8 +66,12 @@ export function sightingDetailHTML(item) {
 export function buildingDetailHTML(place, record) {
   // 事故記録が地図に載っていない施設では「事故後〜」の記述を隠し、記録より先に事故が分からないようにする。
   const elevator = !record && /事故後/u.test(place.elevator) ? place.elevator.replace(/・事故後.*$/u, '') : place.elevator;
+  const date = record ? dateLabel(record.date) : '';
+  const yearEnd = date.indexOf('年') + 1;
+  // 月日だけを囲み、2018年の保存ページでヒントを使っているときに限って赤くする。
+  const dateHTML = `${escapeHTML(date.slice(0, yearEnd))}<span data-hint="oldest-date">${escapeHTML(date.slice(yearEnd))}</span>`;
   const recordHTML = record
-    ? `<p class="incident-type">${escapeHTML(record.type)}</p><dl class="detail-facts"><div><dt>発生日</dt><dd>${dateLabel(record.date)}</dd></div><div><dt>出典</dt><dd>${escapeHTML(record.source)}</dd></div></dl><p class="detail-body">${escapeHTML(record.body)}</p>`
+    ? `<p class="incident-type">${escapeHTML(record.type)}</p><dl class="detail-facts"><div><dt>発生日</dt><dd>${dateHTML}</dd></div><div><dt>出典</dt><dd>${escapeHTML(record.source)}</dd></div></dl><p class="detail-body">${escapeHTML(record.body)}</p>`
     : '<p class="no-record">この施設の事故情報は登録されていません。</p>';
   const commentsHTML = record
     ? `<section class="record-comments"><h4>口コミ <span>${record.comments.length}件</span></h4>${record.comments.map((comment, index) => `<div><small>${index + 1}：名無しの市民</small><p>${escapeHTML(comment)}</p></div>`).join('')}<p class="comments-readonly">口コミの投稿は受け付けていません。</p></section>`

@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises';
 import { inflateSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { MAP_LAYOUT } from '../map-layout.js';
-import { MAP_CONFIG, BUILDINGS, ACCIDENTS, SIGHTINGS, TARGET_BUILDING, sightingsForSnapshot } from '../data.js';
+import { MAP_CONFIG, BUILDINGS, ACCIDENTS, SIGHTINGS, TARGET_BUILDING, sightingsForSnapshot, recordsForSnapshot } from '../data.js';
 import { snapshotDates, createState } from '../game-state.js';
-import { mapSVG, sightingPinsHTML, sightingDetailHTML, mapScale, mountMap } from '../map.js';
+import { mapSVG, sightingPinsHTML, sightingDetailHTML, buildingDetailHTML, mapScale, mountMap } from '../map.js';
 import { mapHTML } from '../community.js';
 
 // PNGの画素を直接読み、座標が道路・水面・建物のどこに当たるかを検証します。
@@ -54,6 +54,16 @@ function imageData() {
   return imagePromise;
 }
 const dates = snapshotDates(createState(Date.parse('2026-10-23T12:00:00+09:00')));
+test('最古の魚拓の事故1件では、発生日の月日だけをヒントの対象にする', () => {
+  const records = recordsForSnapshot('oldest', dates);
+  assert.equal(records.length, 1);
+  const record = records[0];
+  const place = BUILDINGS.find(item => item.id === record.buildingId);
+  const detail = buildingDetailHTML(place, record);
+  assert.match(detail, /<dt>発生日<\/dt><dd>2018年<span data-hint="oldest-date">11月27日<\/span><\/dd>/);
+  assert.equal((detail.match(/data-hint="oldest-date"/gu) ?? []).length, 1);
+  assert.doesNotMatch(buildingDetailHTML(place, undefined), /data-hint="oldest-date"/);
+});
 const isWater = ([r, g, b]) => b > r + 25 && b > g + 20 && g > 140;
 const interpolated = (line, x, axis) => {
   const input = axis === 'y' ? 1 : 0, output = 1 - input;

@@ -9,6 +9,28 @@
   --red: #a7372c;
   --link: #254b77;
   --green: #527357;
+  /* ゲーム外のフッター・ダイアログ共通の配色。 */
+  --meta-bg: #e5e7eb;
+  --meta-ink: #374151;
+  --meta-muted: #596273;
+  --meta-border: #b8c0cc;
+  --meta-link: #334e70;
+  --meta-primary: #42576f;
+  --meta-button-bg: #f8fafc;
+  --meta-gap: #f8fafc;
+  --meta-gap-size: 6px;
+  --footer-min-height: 44px;
+  --footer-padding-block: 6px;
+  --footer-control-height: 26px;
+  /* ヒントの色と明滅速度。文章は赤のみ、リンクは薄い赤の背景と輪郭を明滅させる。 */
+  --hint-color: #a7372c;
+  --hint-admin-color: #ff9a85;
+  --hint-admin-tint: #50382f;
+  --hint-text-color: #ff0000;
+  --hint-tint: #f5deda;
+  --hint-pulse-duration: 2.8s;
+  --hint-ring-size: 3px;
+  --hint-map-ring-size: 8px;
   --sidebar-width: 270px;
   --map-height: 65dvh;
   --map-detail-inset: 12px;
@@ -64,8 +86,30 @@ button, a { touch-action: manipulation; }
 .admin-link { border: 0; background: none; color: var(--link); font-size: var(--text-small); padding: 10px 0 10px 12px; display: flex; align-items: center; gap: 7px; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 .admin-link:disabled { color: #8c9085; text-decoration: none; }
 /* 全ページ共通のフッター（ゲームの外側のメタ情報）。 */
-.site-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 18px; min-height: 62px; padding: 15px 30px; border-top: 1px solid var(--line); font-size: var(--text-caption); color: var(--muted); flex-wrap: wrap; }
-.footer-about { border: 0; padding: 0; background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--link); font-size: inherit; }
+.site-footer { margin-top: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; min-height: var(--footer-min-height); padding: var(--footer-padding-block) 30px; border-top: var(--meta-gap-size) solid var(--meta-gap); box-shadow: inset 0 1px 0 var(--meta-border); font-size: var(--text-caption); color: var(--meta-ink); background: var(--meta-bg); }
+.footer-about, .footer-hints { border: 0; min-height: var(--footer-control-height); padding: 0; background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--meta-link); font-size: inherit; }
+.footer-about { justify-self: start; text-align: left; }
+.footer-hints { justify-self: center; white-space: nowrap; }
+.footer-hints[aria-pressed="true"] { color: var(--meta-ink); font-weight: 600; }
+.site-footer button:hover { color: var(--meta-ink); }
+.site-footer button:focus-visible { outline-color: var(--meta-link); }
+.site-footer .page-number { color: var(--meta-ink); line-height: 1.4; }
+.site-footer .page-number > span { color: var(--meta-muted); }
+/* data-hint は指定した手掛かりにだけ付ける。オフ時には一切装飾しない。 */
+body[data-hints="on"] [data-hint="text"] { color: var(--hint-text-color); }
+body[data-hints="on"] [data-hint="action"] { color: var(--hint-color); }
+body[data-hints="on"] [data-hint="action"] { animation: hint-pulse var(--hint-pulse-duration) ease-in-out infinite; }
+body[data-hints="on"][data-snapshot="oldest"] [data-hint="oldest-date"] { color: var(--hint-text-color); }
+/* ピン本体の位置・倍率は変えず、背景の周囲だけを明滅させる。 */
+body[data-hints="on"][data-snapshot="oldest"] .map-pin:not(.map-pin--sighting)::before { animation: hint-map-pulse var(--hint-pulse-duration) ease-in-out infinite; }
+@keyframes hint-map-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 var(--hint-map-ring-size) color-mix(in srgb, var(--hint-text-color) 50%, transparent); }
+}
+@keyframes hint-pulse {
+  0%, 100% { background-color: transparent; box-shadow: 0 0 0 0 transparent; }
+  50% { background-color: var(--hint-tint); box-shadow: 0 0 0 var(--hint-ring-size) var(--hint-color); }
+}
 .page-number { white-space: nowrap; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; color: var(--ink); font-size: var(--body-size); justify-self: end; letter-spacing: .05em; }
 .page-number > span { color: #94988d; font-size: var(--text-caption); margin-inline: 3px; }
 .viewer-display { display: flex; gap: 5px; align-items: center; font-size: var(--text-caption); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -157,7 +201,6 @@ button, a { touch-action: manipulation; }
 .new-post-notice { display: flex; gap: 12px; align-items: center; font-size: var(--text-small); padding: 10px 26px; background: #eee8d9; border-bottom: 1px solid #d9d0bd; text-decoration: none; color: #695c43; }
 .new-post-notice > span:last-child { margin-left: auto; }
 .new-post-label { border: 1px solid #a8946b; padding: 0 5px; font-size: var(--text-caption); }
-.public-shell .site-footer { min-height: 53px; }
 
 /* 地図 */
 .map-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 17px; flex-wrap: wrap; }
@@ -349,7 +392,7 @@ body:has(#site-dialog[open]) { overflow: hidden; }
 /* 管理者画面 */
 body[data-screen="admin"], body[data-screen="ending"] { background: #101516; color: #c2ccc4; }
 /* ダイアログは .admin-shell の外にあるため、画面種別から管理者用の配色を適用する。 */
-body[data-screen="admin"] #site-dialog {
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) {
   --ink: #c2ccc4;
   --white: #18211c; /* 背景色の変数を暗色で上書きする（名前は明るい配色時のもの）。 */
   --line: #344238;
@@ -359,15 +402,17 @@ body[data-screen="admin"] #site-dialog {
   box-shadow: 0 12px 40px #0006;
   color-scheme: dark;
 }
-body[data-screen="admin"] #site-dialog::backdrop { background: #080d0bb3; }
-body[data-screen="admin"] #modal-title { color: #e0e8df; font-weight: 400; }
-body[data-screen="admin"] #dialog-content > p { color: #adbcb0; }
-body[data-screen="admin"] #site-dialog .dialog-close { color: #98aa9c; }
-body[data-screen="admin"] #site-dialog :focus-visible { outline-color: #e7ece7; }
-body[data-screen="admin"] #site-dialog .text-link:hover { color: #e0e8df; }
-body[data-screen="admin"] #site-dialog .button { background: transparent; }
-body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { background: #26362c; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"])::backdrop { background: #080d0bb3; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) #modal-title { color: #e0e8df; font-weight: 400; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) #dialog-content > p { color: #adbcb0; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) .dialog-close { color: #98aa9c; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) :focus-visible { outline-color: #e7ece7; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) .text-link:hover { color: #e0e8df; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button { background: transparent; }
+body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button:not(.button--primary):hover { background: #26362c; }
 .admin-shell, .ending-shell { min-height: 100dvh; --link: #b3c5b9; }
+/* 暗い管理者画面でも、ヒントの文字と明滅する背景の明暗差を保つ。 */
+.admin-shell { --hint-color: var(--hint-admin-color); --hint-tint: var(--hint-admin-tint); }
 .admin-shell a, .ending-shell a { color: var(--link); }
 .admin-shell :focus-visible, .ending-shell :focus-visible { outline-color: #e7ece7; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 32px; gap: 20px; border-bottom: 1px solid #303b35; flex-wrap: wrap; }
@@ -393,14 +438,21 @@ body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { bac
 .admin-operation h2 { font-size: var(--body-size); font-weight: 400; color: #b4c7b9; margin-bottom: 15px; }
 .admin-operation > p { font-size: var(--text-small); color: #7e9483; }
 .admin-operation-button { margin-top: 12px; min-width: 200px; padding: 13px 27px; font-size: var(--body-size); }
-.admin-operation-button, body[data-screen="admin"] #site-dialog .button--primary { color: #cedcd0; background: #283c2e; border: 1px solid #65816b; }
-.admin-operation-button:hover, body[data-screen="admin"] #site-dialog .button--primary:hover { background: #364e3d; }
-.admin-operation-button--close, body[data-screen="admin"] #site-dialog .admin-operation-button--close { border-color: #92695e; background: #392c27; color: #dbb8a8; }
-.admin-operation-button--close:hover, body[data-screen="admin"] #site-dialog .admin-operation-button--close:hover { background: #50382f; }
+.admin-operation-button, body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button--primary { color: #cedcd0; background: #283c2e; border: 1px solid #65816b; }
+.admin-operation-button:hover, body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button--primary:hover { background: #364e3d; }
+.admin-operation-button--close, body[data-screen="admin"] #site-dialog:not([data-context="game"]) .admin-operation-button--close { border-color: #92695e; background: #392c27; color: #dbb8a8; }
+.admin-operation-button--close:hover, body[data-screen="admin"] #site-dialog:not([data-context="game"]) .admin-operation-button--close:hover { background: #50382f; }
 .admin-public-message > span { color: #839e75; font-size: var(--text-caption); margin-right: 5px; }
 .admin-operation > a { font-size: var(--text-small); }
-.admin-shell .site-footer, .ending-shell .site-footer { border-top-color: #29382e; color: #5b7162; }
-.admin-shell .page-number, .ending-shell .page-number { color: #9ab09f; }
+/* ゲーム外のダイアログは画面の明暗にかかわらず、この配色に統一する。 */
+#site-dialog[data-context="game"] { color: var(--meta-ink); background: var(--meta-bg); border-color: var(--meta-border); border-radius: 8px; box-shadow: 0 12px 40px #11182740; color-scheme: light; }
+#site-dialog[data-context="game"]::backdrop { background: #11182780; }
+#site-dialog[data-context="game"] .dialog-close { color: var(--meta-muted); }
+#site-dialog[data-context="game"] .button { border-color: var(--meta-border); border-radius: 5px; background: var(--meta-button-bg); color: var(--meta-ink); }
+#site-dialog[data-context="game"] .button--primary { background: var(--meta-primary); border-color: var(--meta-primary); color: #fff; }
+#site-dialog[data-context="game"] .button:hover { background: var(--meta-border); }
+#site-dialog[data-context="game"] .button--primary:hover { background: var(--meta-link); }
+#site-dialog[data-context="game"] :focus-visible { outline-color: var(--meta-link); }
 
 /* クリアと本編への導線 */
 .ending-main { width: min(700px, 100%); margin: auto; padding: 66px 35px 65px; }
@@ -449,7 +501,7 @@ body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { bac
   .closure-notice h1 { font-size: clamp(1.3125rem, 4.5vw, 1.625rem); line-height: 2.1; }
   .closure-notice > p:not(.closure-caption) { font-size: var(--body-size); }
   .closure-signature { font-size: var(--text-caption); margin-top: 36px; }
-  .site-footer { min-height: 52px; padding: 14px 18px; font-size: var(--text-caption); flex-wrap: wrap; }
+  .site-footer { padding-inline: 18px; }
   .closure-archive { bottom: 24px; padding-inline: 22px; font-size: var(--text-caption); }
   .page-number { font-size: var(--text-caption); }
   .page-number > span { font-size: var(--text-caption); }
@@ -585,4 +637,8 @@ body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { bac
   .ending-story h1 { font-size: var(--text-lead); }
   .address-fields { gap: 14px; }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+  body[data-hints="on"] [data-hint="action"] { animation: none; background: var(--hint-tint); box-shadow: 0 0 0 var(--hint-ring-size) var(--hint-color); }
+  body[data-hints="on"][data-snapshot="oldest"] .map-pin:not(.map-pin--sighting)::before { animation: none; box-shadow: 0 0 0 var(--hint-map-ring-size) color-mix(in srgb, var(--hint-text-color) 50%, transparent); }
+}
