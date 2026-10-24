@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <base href="../">
+  <title>SNS共有画像の出力用</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* SNSカード用の固定寸法。画面の外枠を省き、公開当時の地図だけを全面に出力する。 */
+    html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+    .map-heading, .map-below { display: none; }
+    .map-stage { width: 1200px; height: 630px; min-height: 0; max-height: none; border: 0; }
+    .map-location small { font-size: 12px; letter-spacing: 0; }
+  </style>
+</head>
+<body>
+  <main id="share-map"></main>
+  <script type="module">
+    import { ACCIDENTS, SIGHTINGS, MAP_CONFIG } from './data.js';
+    import { CONFIG } from './board-data.js';
+    import { mapHTML } from './community.js';
+    import { mountMap } from './map.js';
+
+    // 初期の事故記録のみを使い、プレイヤーの進行や解答となる追加ピンは含めない。
+    const basemap = new Image();
+    basemap.src = MAP_CONFIG.image;
+    await basemap.decode();
+    await document.fonts.ready;
+    document.querySelector('#share-map').innerHTML = mapHTML(ACCIDENTS, SIGHTINGS);
+    document.querySelector('.map-location small').textContent = CONFIG.name;
+    mountMap(document.querySelector('#map-stage'), { plottedRecords: ACCIDENTS, sightings: SIGHTINGS });
+    document.documentElement.dataset.imageReady = 'true';
+  </script>
+</body>
+</html>

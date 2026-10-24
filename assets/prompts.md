@@ -2,6 +2,10 @@
 
 使用方法：内蔵 image_gen による新規生成。APIキー・CLIは不使用。
 
+## social-map.png（SNS共有用）
+
+既存の生成地図を背景に、実際の地図描画コードで地名・施設・初期の事故18件と目撃情報を重ねた画像です。新たな画像生成は行わず、`tools/share-image.html` を1200×630で描画してPNGに出力しています。閉鎖のお知らせや解答となる追加ピンは含めません。
+
 ## misuta-realistic-map.png（現在使用中）
 
 内蔵 image_gen による新規生成。モデル名の指定欄はないため、Image2.5指定の保証はしていません。最終画像は1536×1024です。生成に使った全文プロンプトは [misuta-realistic-map.prompt.txt](misuta-realistic-map.prompt.txt) に保存しています。プロンプト中の都市名 Kirihara は舞台の旧称です（現在は三栖田市）。

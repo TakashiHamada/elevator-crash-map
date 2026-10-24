@@ -12,7 +12,7 @@ export const CONFIG = {
   sessionKey: 'misuta-ere-admin-v1',
   // 魚拓で最後に検索した語。検索語なしで魚拓を開いたとき、この語の検索結果を表示する。
   archiveQueryKey: 'misuta-ere-archive-query-v1',
-  siteUrl: '', // 公開URLが確定したら指定。空欄では実行中のサイトURLを使います。
+  siteUrl: 'https://takashihamada.github.io/elevator-crash-map/', // 公開先を変える場合は index.html の共有用URLも更新する。
   promotionUrl: 'https://gift10.co.jp/blogs/rules/elevator',
   promotionLabel: '「ミスターエレベーター」公式サイト・ストアへ',
   releaseLabel: 'PS5®版 2026年11月27日（金）発売',
