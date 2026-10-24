@@ -95,14 +95,12 @@ export function mapHTML(plottedRecords, sightings = []) {
   return `<div class="map-heading"><div><p class="section-label">三栖田市／事故記録</p><h2>エレベーター事故マップ</h2></div><span class="record-total"><strong>${recordCount}</strong> 件</span></div>
     <div class="map-stage" id="map-stage" tabindex="0" role="region" aria-label="三栖田市の地図。矢印キーで移動、プラス・マイナスで拡大縮小できます。">
       <div class="map-world" id="map-world"></div>
-      <div class="map-location"><span>三栖田市</span><small>Misuta</small></div>
-      <div class="map-controls"><button type="button" data-map-action="in" aria-label="地図を拡大">＋</button><button type="button" data-map-action="out" aria-label="地図を縮小">−</button><button type="button" data-map-action="reset" aria-label="市全域を表示">⌖</button></div>
-      <div class="map-north" aria-hidden="true">N<span>↑</span></div>
-      <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${recordCount}</button><button type="button" data-map-layer="sightings" aria-pressed="true" ${sightings.length ? '' : 'disabled'}><i class="legend-sighting" aria-hidden="true">目</i> 目撃情報 ${sightings.length}</button><span class="legend-facility"><i aria-hidden="true"></i> 施設情報</span></div>
-      <div class="map-attribution">地図・施設情報：${escapeHTML(CONFIG.name)}　<span id="map-scale">500 m</span></div>
+      <div class="map-controls"><button type="button" data-map-action="in" aria-label="地図を拡大">＋</button><button type="button" data-map-action="out" aria-label="地図を縮小">−</button></div>
+      <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${recordCount}</button><button type="button" data-map-layer="sightings" aria-pressed="true" ${sightings.length ? '' : 'disabled'}><i class="legend-sighting" aria-hidden="true">目</i> 目撃情報 ${sightings.length}</button></div>
+      <div class="map-attribution"><span id="map-scale">500 m</span></div>
       <aside id="map-detail" class="map-detail" aria-labelledby="detail-title" hidden></aside>
     </div>
-    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。色の付いた建物を押すと施設情報を確認できます。拡大すると施設名と詳しい番地も表示されます。</p><button class="text-link" data-action="report">事故情報の投稿 →</button></div>`;
+    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。色の付いた建物を押すと施設情報を確認できます。拡大すると施設名と詳しい番地も表示されます。<br>地図は上が北です。</p><button class="text-link" data-action="report">事故情報の投稿 →</button></div>`;
 }
 export function postingHelpHTML() {
   return `<div class="document-page"><p class="section-label">ご利用案内</p><h2>投稿方法</h2>

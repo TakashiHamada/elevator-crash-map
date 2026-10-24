@@ -44,6 +44,19 @@ export const MAP_LAYOUT = {
       ],
       "prominent": true
     },
+    "station-north": {
+      "x": 790,
+      "y": 330,
+      "width": 44,
+      "height": 45,
+      "box": [
+        767,
+        306,
+        811,
+        351
+      ],
+      "prominent": true
+    },
     "warehouse": {
       "x": 1428,
       "y": 395,
@@ -71,41 +84,41 @@ export const MAP_LAYOUT = {
       "prominent": false
     },
     "library": {
-      "x": 643,
-      "y": 328,
-      "width": 28,
-      "height": 34,
+      "x": 563,
+      "y": 126,
+      "width": 37,
+      "height": 23,
       "box": [
-        630,
-        308,
-        658,
-        342
+        547,
+        112,
+        584,
+        135
       ],
       "prominent": true
     },
     "medical": {
-      "x": 1285,
-      "y": 323,
-      "width": 17,
-      "height": 13,
+      "x": 1001,
+      "y": 391,
+      "width": 19,
+      "height": 31,
       "box": [
-        1277,
-        318,
-        1294,
-        331
+        992,
+        375,
+        1011,
+        406
       ],
       "prominent": false
     },
     "shopping": {
-      "x": 583,
-      "y": 467,
-      "width": 36,
-      "height": 29,
+      "x": 149,
+      "y": 422,
+      "width": 29,
+      "height": 22,
       "box": [
-        569,
-        455,
-        605,
-        484
+        136,
+        413,
+        165,
+        435
       ],
       "prominent": true
     },
@@ -188,15 +201,15 @@ export const MAP_LAYOUT = {
       "prominent": false
     },
     "department": {
-      "x": 675,
-      "y": 458,
-      "width": 21,
-      "height": 27,
+      "x": 643,
+      "y": 328,
+      "width": 28,
+      "height": 34,
       "box": [
-        663,
-        444,
-        684,
-        471
+        630,
+        308,
+        658,
+        342
       ],
       "prominent": false
     },
@@ -240,28 +253,28 @@ export const MAP_LAYOUT = {
       "prominent": false
     },
     "hospital": {
-      "x": 737,
-      "y": 359,
-      "width": 44,
-      "height": 35,
+      "x": 1294,
+      "y": 164,
+      "width": 43,
+      "height": 27,
       "box": [
-        713,
-        343,
-        757,
-        378
+        1272,
+        152,
+        1315,
+        179
       ],
       "prominent": true
     },
     "city-hall": {
-      "x": 673,
-      "y": 325,
-      "width": 21,
-      "height": 30,
+      "x": 953,
+      "y": 286,
+      "width": 35,
+      "height": 34,
       "box": [
-        665,
-        309,
-        686,
-        339
+        936,
+        269,
+        971,
+        303
       ],
       "prominent": true
     },
@@ -279,28 +292,28 @@ export const MAP_LAYOUT = {
       "prominent": true
     },
     "post": {
-      "x": 604,
-      "y": 356,
-      "width": 22,
-      "height": 23,
+      "x": 135,
+      "y": 715,
+      "width": 30,
+      "height": 31,
       "box": [
-        595,
-        346,
-        617,
-        369
+        122,
+        699,
+        152,
+        730
       ],
       "prominent": false
     },
     "hotel": {
-      "x": 774,
-      "y": 453,
-      "width": 15,
-      "height": 18,
+      "x": 846,
+      "y": 676,
+      "width": 34,
+      "height": 31,
       "box": [
-        766,
-        443,
-        781,
-        461
+        831,
+        663,
+        865,
+        694
       ],
       "prominent": false
     },
@@ -426,7 +439,7 @@ export const MAP_LAYOUT = {
     [
       "西山台",
       431,
-      212
+      132
     ],
     [
       "北町",

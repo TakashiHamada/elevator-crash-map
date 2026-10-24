@@ -137,10 +137,6 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     offsetY = stageHeight / 2 - imageY * displayScale();
     applyView();
   }
-  function resetView() {
-    userZoom = 1;
-    centerOn(config.width / 2, config.height / 2);
-  }
   function setZoom(value, atX = stageWidth / 2, atY = stageHeight / 2) {
     value = Math.min(config.maxZoom, Math.max(1, value));
     const ratio = value / userZoom;
@@ -206,7 +202,6 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     const action = event.target.closest('[data-map-action]')?.dataset.mapAction;
     if (action === 'in') setZoom(userZoom * config.zoomStep);
     if (action === 'out') setZoom(userZoom / config.zoomStep);
-    if (action === 'reset') { closeDetail(); resetView(); }
     if (action === 'close') closeDetail(true);
     const building = event.target.closest('[data-building-id]');
     if (building) selectBuilding(building.dataset.buildingId);

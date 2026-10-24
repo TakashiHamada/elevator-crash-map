@@ -68,9 +68,9 @@ test('配信画像の寸法・座標系・画像の指紋が一致する', async
   assert.match(mapSVG(), /<image class="map-basemap"/u);
   assert.match(mapSVG(), /preserveAspectRatio="xMidYMid meet"/u);
 });
-test('30施設の中心は生成画像の灰色の建物に重なり、水面や白い道路に乗らない', async () => {
+test('31施設の中心は生成画像の灰色の建物に重なり、水面や白い道路に乗らない', async () => {
   const image = await imageData();
-  assert.equal(BUILDINGS.length, 30); // 脚本上の件数。変更時は README も更新する
+  assert.equal(BUILDINGS.length, 31); // 登録施設の件数。変更時は README も更新する
   for (const place of BUILDINGS) {
     assert.ok(place.x >= 0 && place.x < image.width && place.y >= 0 && place.y < image.height, place.id);
     const color = image.pixel(place.x, place.y), [r, g, b] = color;
