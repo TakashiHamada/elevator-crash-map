@@ -14,7 +14,9 @@ export const MAP_CONFIG = {
   focusZoomNarrow: 2.3, focusZoomWide: 1.5, focusNarrowMaxWidth: 600,
   focusSideBySideMinWidth: 760, focusXSideBySide: 0.32, focusXStacked: 0.5, focusY: 0.4,
   // ホイール1単位あたりのズーム感度と、矢印キー1回の移動量（px）。
-  wheelZoomSensitivity: 0.0013, keyboardPanPixels: 65
+  wheelZoomSensitivity: 0.0013, keyboardPanPixels: 65,
+  // タップ・クリックとして許容する、押し始めからの移動距離（画面上のpx）。
+  tapMoveTolerancePixels: 6
 };
 export const TOWNS = ['西山台', '北町', '本町', '中央', '東町', '緑町', '新町', '南町', '港南', '凪浜町'];
 export const TOWN_LABELS = MAP_LAYOUT.townLabels;

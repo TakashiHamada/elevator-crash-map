@@ -166,6 +166,114 @@ test('全施設を支援技術から識別でき、キーボードでフォー�
     assert.equal(attributes['aria-expanded'], 'false', place.id);
   }
 });
+test('詳細は地図のタップ・クリックで閉じ、別スポットでは直接切り替わり、ドラッグ・ピンチでは閉じない', t => {
+  const handlers = new Map(), selections = [];
+  const node = (selectors = [], parent = null, dataset = {}) => ({
+    dataset,
+    attributes: new Map(),
+    getAttribute(name) { return this.attributes.get(name) ?? null; },
+    setAttribute(name, value) { this.attributes.set(name, value); },
+    closest(selector) {
+      return selector.split(',').some(part => selectors.includes(part)) ? this : parent?.closest(selector) ?? null;
+    }
+  });
+  const style = () => ({ setProperty() {} });
+  const closeButton = { focus() {} };
+  const panel = { ...node(['.map-detail']), hidden: true, querySelector: () => closeButton };
+  const world = { ...node(), style: style(), querySelectorAll: () => [], querySelector: () => null };
+  const elements = new Map([
+    ['#map-world', world], ['#map-detail', panel], ['#map-scale', { style: style() }],
+    ['[data-map-action="in"]', {}], ['[data-map-action="out"]', {}]
+  ]);
+  const stage = {
+    ...node(), clientWidth: 800, clientHeight: 500, dataset: {},
+    classList: { add() {}, remove() {} }, setPointerCapture() {},
+    getBoundingClientRect: () => ({ left: 0, top: 0 }),
+    querySelector: selector => elements.get(selector),
+    addEventListener: (type, handler) => handlers.set(type, handler)
+  };
+  const background = node([], world);
+  world.contains = target => [world, background].includes(target);
+  const facility = node(['[data-building-id]', '.map-building'], world, { buildingId: BUILDINGS[0].id });
+  let keyboardFocus = false;
+  facility.matches = selector => selector === ':focus-visible' && keyboardFocus;
+  const sighting = node(['[data-sighting-id]', 'button'], world, { sightingId: SIGHTINGS[0].id });
+  const click = target => handlers.get('click')({ target, detail: 1 });
+  const pointer = (type, pointerType, x = 100, pointerId = 1) => handlers.get(type)({
+    target: background, pointerId, pointerType, button: 0, clientX: x, clientY: 100
+  });
+  for (const [key, value] of Object.entries({
+    document: { activeElement: null }, ResizeObserver: class { observe() {} disconnect() {} }
+  })) {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    t.after(() => {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    });
+  }
+  const map = mountMap(stage, { plottedRecords: ACCIDENTS, sightings: SIGHTINGS,
+    onSelect: (...ids) => selections.push(ids) });
+  t.after(() => map.destroy());
+
+  for (const pointerType of ['mouse', 'touch']) {
+    map.selectBuilding(TARGET_BUILDING.id);
+    selections.length = 0;
+    // pointerdown → focusin → pointerup → clickの順序で、押している間に地図が動かないことを確認する。
+    const beforeTap = world.style.transform;
+    handlers.get('pointerdown')({ target: facility, pointerType, button: 0, pointerId: 1 });
+    handlers.get('focusin')({ target: facility });
+    assert.equal(world.style.transform, beforeTap, pointerType + 'のフォーカスで地図を動かさない');
+    assert.deepEqual(selections, []);
+    handlers.get('pointerup')({ pointerId: 1 });
+    click(node([], facility)); // 建物の子要素を押しても、一度閉じずに切り替わる。
+    assert.equal(panel.hidden, false);
+    assert.ok(panel.innerHTML.includes(BUILDINGS[0].name));
+    click(node([], sighting));
+    assert.equal(panel.hidden, false);
+    assert.ok(panel.innerHTML.includes(SIGHTINGS[0].title));
+    assert.deepEqual(selections, [[BUILDINGS[0].id], [null, SIGHTINGS[0].id]]);
+
+    selections.length = 0;
+    click(node([], panel));
+    click(node(['button', '[data-map-action]'], stage, { mapAction: 'in' }));
+    click(node(['button', '[data-map-layer]'], stage, { mapLayer: 'sightings' }));
+    assert.equal(panel.hidden, false);
+    assert.deepEqual(selections, []);
+
+    pointer('pointerdown', pointerType);
+    pointer('pointermove', pointerType, 100 + MAP_CONFIG.tapMoveTolerancePixels + 1);
+    pointer('pointerup', pointerType);
+    click(stage); // pointer capture後はstageにクリックが届く。
+    assert.equal(panel.hidden, false);
+    assert.deepEqual(selections, []);
+
+    pointer('pointerdown', pointerType);
+    pointer('pointerdown', pointerType, 200, 2);
+    pointer('pointermove', pointerType, 240, 2);
+    pointer('pointerup', pointerType, 240, 2);
+    pointer('pointerup', pointerType);
+    click(stage);
+    assert.equal(panel.hidden, false);
+    assert.deepEqual(selections, []);
+
+    pointer('pointerdown', pointerType);
+    pointer('pointermove', pointerType, 100 + MAP_CONFIG.tapMoveTolerancePixels / 2);
+    pointer('pointerup', pointerType);
+    click(stage);
+    assert.equal(panel.hidden, true);
+    assert.deepEqual(selections, [[null]]);
+
+    map.selectBuilding(TARGET_BUILDING.id);
+    click(background);
+    assert.equal(panel.hidden, true);
+  }
+  const beforeKeyboardFocus = world.style.transform;
+  keyboardFocus = true;
+  handlers.get('focusin')({ target: facility });
+  assert.notEqual(world.style.transform, beforeKeyboardFocus, 'キーボードで選ぶと施設の位置へ地図を動かす');
+  assert.equal(panel.hidden, true, 'フォーカス移動だけでは詳細を開かない');
+});
 test('EnterとSpaceで事故未掲載の施設を選び、Escapeで元の施設にフォーカスを戻せる', () => {
   // レイアウトの見た目は検証せず、mountMap の選択・フォーカス・イベント処理に必要なDOMだけを用意する。
   const originalGlobals = new Map(['document', 'ResizeObserver'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));

@@ -95,6 +95,7 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   let appliedScale = null;
   const pointers = new Map();
   let previousPinchDistance = null, lastFocus = null;
+  let suppressMapClick = false;
   world.innerHTML = mapSVG() + accidentPinsHTML(plottedRecords) + sightingPinsHTML(sightings);
   world.style.width = config.width + 'px';
   world.style.height = config.height + 'px';
@@ -187,8 +188,11 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     onSelect?.(id);
   }
   stage.addEventListener('click', event => {
+    // ドラッグ・ピンチ終了時に発生するクリックでは詳細を閉じない。
+    if (suppressMapClick && event.detail !== 0) { suppressMapClick = false; return; }
     const layerButton = event.target.closest('[data-map-layer]');
-    if (layerButton && !layerButton.disabled) {
+    if (layerButton) {
+      if (layerButton.disabled) return;
       const layer = layerButton.dataset.mapLayer;
       if (['accidents', 'sightings'].includes(layer)) {
         const visible = layerButton.getAttribute('aria-pressed') !== 'true';
@@ -203,8 +207,10 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     if (action === 'in') setZoom(userZoom * config.zoomStep);
     if (action === 'out') setZoom(userZoom / config.zoomStep);
     if (action === 'close') closeDetail(true);
+    if (action) return;
     const building = event.target.closest('[data-building-id]');
-    if (building) selectBuilding(building.dataset.buildingId);
+    if (building) { selectBuilding(building.dataset.buildingId); return; }
+    if (!panel.hidden && (event.target === stage || world.contains(event.target))) closeDetail();
   }, { signal });
   stage.addEventListener('wheel', event => {
     if (event.target.closest('.map-detail')) return;
@@ -214,16 +220,21 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   }, { signal, passive: false });
   // 建物・ピン・ボタンの上から始めた操作はクリックとして扱い、ドラッグを始めない。
   stage.addEventListener('pointerdown', event => {
+    if (!pointers.size) suppressMapClick = false;
     if (event.button > 0 || event.target.closest('[data-building-id],button,.map-detail')) return;
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY });
     stage.setPointerCapture(event.pointerId);
     stage.classList.add('is-dragging');
-    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; previousPinchDistance = Math.hypot(a.x - b.x, a.y - b.y); }
+    if (pointers.size === 2) {
+      suppressMapClick = true;
+      const [a, b] = [...pointers.values()]; previousPinchDistance = Math.hypot(a.x - b.x, a.y - b.y);
+    }
   }, { signal });
   stage.addEventListener('pointermove', event => {
     const previous = pointers.get(event.pointerId);
     if (!previous) return;
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointers.set(event.pointerId, { ...previous, x: event.clientX, y: event.clientY });
+    if (Math.hypot(event.clientX - previous.startX, event.clientY - previous.startY) > config.tapMoveTolerancePixels) suppressMapClick = true;
     if (pointers.size === 2) {
       // 2本指: 指の間隔の変化率で、2本指の中点を中心に拡大縮小する。
       const [a, b] = [...pointers.values()], distance = Math.hypot(a.x - b.x, a.y - b.y);
@@ -241,7 +252,8 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   // 拡大・移動で表示枠の外にある施設も、Tabで選んだときは見える位置へ寄せる。
   stage.addEventListener('focusin', event => {
     const building = event.target.closest('.map-building');
-    if (!building) return;
+    // タッチ・クリック時は、クリック成立前に建物が指やカーソルの下から動かないようにする。
+    if (!building || !building.matches(':focus-visible')) return;
     const place = getBuilding(building.dataset.buildingId);
     if (place) centerOn(place.x, place.y);
   }, { signal });
