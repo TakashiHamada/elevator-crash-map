@@ -141,6 +141,14 @@ function publicHTML(now) {
     <main class="public-layout">${sidebarHTML(threads, plottedRecords.length, archived)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
     ${footerHTML(page)}</div>`, plottedRecords, sightings };
 }
+// 管理者画面の操作（復元・再閉鎖）は、ログイン済みで管理者画面にいて、進行が requiredPhase のときだけ受け付ける。
+function canOperateAdmin(requiredPhase) {
+  return authenticated && currentRoute.type === 'admin' && store.state.phase === requiredPhase;
+}
+// 管理者操作の確認ダイアログ。確定ボタンの data-action で実行し、閉鎖は confirmClass で警告色にする。
+function adminConfirmHTML(title, message, confirmAction, confirmLabel, confirmClass = '') {
+  return `<h2 id="modal-title">${title}</h2><p>${message}</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">キャンセル</button><button class="button button--primary${confirmClass ? ' ' + confirmClass : ''}" type="button" data-action="${confirmAction}">${confirmLabel}</button></div>`;
+}
 // 管理者画面下部の操作。閉鎖中は「復元」、現場掲載後は「再閉鎖」（クリア条件）、その間は公開中の案内。
 function adminOperationHTML(phase) {
   if (phase === 'closed') return '<p>保存されている内容を使って、サイトの公開を再開します。</p><button class="admin-operation-button" type="button" data-action="restore">サイトを復元</button>';
@@ -300,18 +308,18 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'report') { openReport(); return; }
-  if (action === 'restore' && authenticated && currentRoute.type === 'admin' && store.state.phase === 'closed') {
-    modal('<h2 id="modal-title">サイトを復元しますか？</h2><p>保存されている内容を使って、地図と掲示板の公開を再開します。</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">キャンセル</button><button class="button button--primary" type="button" data-action="confirm-restore">サイトを復元</button></div>');
+  if (action === 'restore' && canOperateAdmin('closed')) {
+    modal(adminConfirmHTML('サイトを復元しますか？', '保存されている内容を使って、地図と掲示板の公開を再開します。', 'confirm-restore', 'サイトを復元'));
     return;
   }
-  if (action === 'confirm-restore' && dialog.open && authenticated && currentRoute.type === 'admin' && store.state.phase === 'closed') {
+  if (action === 'confirm-restore' && dialog.open && canOperateAdmin('closed')) {
     store.dispatch({ type: 'restore' }); dialog.close(); navigate('#/live'); return;
   }
-  if (action === 'close-site' && authenticated && currentRoute.type === 'admin' && store.state.phase === 'published') {
-    modal('<h2 id="modal-title">サイトを閉鎖しますか？</h2><p>公開中の地図と掲示板は閲覧できなくなります。</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">キャンセル</button><button class="button button--primary" type="button" data-action="confirm-close-site">サイトを閉鎖</button></div>');
+  if (action === 'close-site' && canOperateAdmin('published')) {
+    modal(adminConfirmHTML('サイトを閉鎖しますか？', '公開中の地図と掲示板は閲覧できなくなります。', 'confirm-close-site', 'サイトを閉鎖', 'admin-operation-button--close'));
     return;
   }
-  if (action === 'confirm-close-site' && dialog.open && authenticated && currentRoute.type === 'admin' && store.state.phase === 'published') {
+  if (action === 'confirm-close-site' && dialog.open && canOperateAdmin('published')) {
     store.dispatch({ type: 'close' }); playClosingTransition(); return;
   }
   if (action === 'replay') {

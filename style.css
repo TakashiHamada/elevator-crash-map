@@ -27,7 +27,8 @@
   --facility-image-brightness: .94;
   --facility-shadow: #24425e55;
   --facility-glow-selected: var(--red);
-  --facility-hit-padding: 6px;
+  /* 施設の当たり判定を外周より広げる線幅（画面上のpx）。外側へ広がるのはこの半分。 */
+  --facility-hit-stroke-width: 6px;
   /* 本文18px・補足16px・注記14px。remでブラウザーの文字サイズ設定にも追従する。 */
   --body-size: 1.125rem;
   --text-small: 1rem;
@@ -140,7 +141,6 @@ button, a { touch-action: manipulation; }
 .site-status-line { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 10px 27px; border-bottom: 1px solid var(--line); font-size: var(--text-caption); color: var(--muted); flex-wrap: wrap; }
 .public-layout { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); flex: 1; }
 .site-sidebar { border-right: 1px solid var(--line); padding: 24px 20px 36px 26px; }
-.sidebar-label { color: #7f8478; font-size: var(--text-caption); padding-bottom: 9px; margin: 0; }
 .section-nav { border-block: 1px solid var(--line-dark); }
 .section-nav > a { display: flex; align-items: center; justify-content: space-between; min-height: 46px; gap: 8px; padding: 9px 6px; border-bottom: 1px solid var(--line); font-size: var(--text-small); text-decoration: none; }
 .section-nav > a:last-child { border-bottom: 0; }
@@ -178,12 +178,13 @@ button, a { touch-action: manipulation; }
 .block-labels text { font-size: var(--map-label-size, var(--text-caption)); fill: #898b88; }
 .map-stage:not([data-detail-level="street"]) .block-labels { display: none; }
 .map-building { cursor: pointer; }
+/* 施設のフォーカスは枠線ではなく、下の色付け・輪郭・施設名で示す。 */
 .map-building:focus-visible { outline: none; }
 .building-cutout { overflow: hidden; pointer-events: none; filter: contrast(var(--facility-image-contrast)) brightness(var(--facility-image-brightness)); }
 .building-tint { fill: var(--facility-fill); }
 .building-contour { fill: none; stroke: var(--facility-stroke); stroke-width: calc(var(--facility-stroke-width) * var(--inverse-scale, 1)); stroke-linejoin: round; filter: drop-shadow(0 1px 1px var(--facility-shadow)); pointer-events: none; }
 /* 小さな建物も押しやすいよう、透明な当たり領域だけを外周の周りへ広げる。 */
-.building-hit-area { fill: transparent; stroke: transparent; stroke-width: calc(var(--facility-hit-padding) * var(--inverse-scale, 1)); stroke-linejoin: round; pointer-events: all; }
+.building-hit-area { fill: transparent; stroke: transparent; stroke-width: calc(var(--facility-hit-stroke-width) * var(--inverse-scale, 1)); stroke-linejoin: round; pointer-events: all; }
 .map-building text { display: none; font-size: var(--map-label-size, var(--text-caption)); fill: #525a60; }
 .map-stage[data-detail-level="street"] .map-building text,
 .map-stage[data-detail-level="district"] .map-building--prominent text,
@@ -225,7 +226,8 @@ button, a { touch-action: manipulation; }
 .map-stage[data-sightings-hidden="true"] .map-pin--sighting { display: none; }
 .detail-kicker--sighting { color: #357eb8; }
 .sighting-note { font-size: var(--text-caption); line-height: 1.9; color: #8b9486; border-top: 1px solid var(--line); padding-top: 15px; margin-top: 20px; }
-.map-attribution { position: absolute; bottom: 5px; right: 7px; font-size: var(--text-caption); color: #78816e; background: #fffefaac; padding: 0 4px; pointer-events: none; }
+/* 地図右下の縮尺表示の枠。 */
+.map-scale-box { position: absolute; bottom: 5px; right: 7px; font-size: var(--text-caption); color: #78816e; background: #fffefaac; padding: 0 4px; pointer-events: none; }
 #map-scale { display: inline-block; border-bottom: 2px solid #747c6e; text-align: center; white-space: nowrap; font-family: ui-monospace, monospace; }
 .map-stage[data-detail-side="left"] { --map-detail-left: var(--map-detail-inset); --map-detail-right: auto; }
 .map-detail { position: absolute; top: var(--map-detail-inset); right: var(--map-detail-right, var(--map-detail-inset)); left: var(--map-detail-left, auto); width: 400px; max-height: calc(100% - 48px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; border: 1px solid #979e8a; background: var(--white); box-shadow: 2px 3px 12px #2c3a2924; padding: 23px 22px; cursor: auto; z-index: 5; }
@@ -246,7 +248,7 @@ button, a { touch-action: manipulation; }
 .record-comments small { font-size: var(--text-caption); color: #668365; }
 .record-comments > div p { margin: 4px 0; font-size: var(--body-size); }
 .comments-readonly { font-size: var(--text-caption); color: #989f90; margin-top: 14px; }
-.map-below { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 0 0; font-size: var(--text-caption); }
+.map-below { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 8px 0 0; font-size: var(--text-caption); }
 .map-below p { margin: 0; color: #858c7e; }
 /* 地図の説明文の下は、画面幅にかかわらず余白を小さくする。 */
 .content-panel:has(> .map-below) { padding-bottom: 12px; }
@@ -349,7 +351,7 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
 /* ダイアログは .admin-shell の外にあるため、画面種別から管理者用の配色を適用する。 */
 body[data-screen="admin"] #site-dialog {
   --ink: #c2ccc4;
-  --white: #18211c;
+  --white: #18211c; /* 背景色の変数を暗色で上書きする（名前は明るい配色時のもの）。 */
   --line: #344238;
   --line-dark: #455248;
   --link: #b3c5b9;
@@ -393,8 +395,8 @@ body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { bac
 .admin-operation-button { margin-top: 12px; min-width: 200px; padding: 13px 27px; font-size: var(--body-size); }
 .admin-operation-button, body[data-screen="admin"] #site-dialog .button--primary { color: #cedcd0; background: #283c2e; border: 1px solid #65816b; }
 .admin-operation-button:hover, body[data-screen="admin"] #site-dialog .button--primary:hover { background: #364e3d; }
-.admin-operation-button--close, body[data-screen="admin"] #site-dialog [data-action="confirm-close-site"] { border-color: #92695e; background: #392c27; color: #dbb8a8; }
-.admin-operation-button--close:hover, body[data-screen="admin"] #site-dialog [data-action="confirm-close-site"]:hover { background: #50382f; }
+.admin-operation-button--close, body[data-screen="admin"] #site-dialog .admin-operation-button--close { border-color: #92695e; background: #392c27; color: #dbb8a8; }
+.admin-operation-button--close:hover, body[data-screen="admin"] #site-dialog .admin-operation-button--close:hover { background: #50382f; }
 .admin-public-message > span { color: #839e75; font-size: var(--text-caption); margin-right: 5px; }
 .admin-operation > a { font-size: var(--text-small); }
 .admin-shell .site-footer, .ending-shell .site-footer { border-top-color: #29382e; color: #5b7162; }
@@ -431,7 +433,6 @@ body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { bac
   :root { --sidebar-width: 240px; }
   .site-sidebar { padding-inline: 17px; }
   .content-panel { padding-inline: 18px; }
-  .sidebar-label { font-size: var(--text-caption); }
   .map-detail { width: min(360px, calc(100% - 24px)); }
   .admin-layout { gap: 35px; }
 }
@@ -476,7 +477,7 @@ body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { bac
   .viewer-dot { width: 4px; height: 4px; margin-right: 1px; }
   .public-layout { display: block; }
   .site-sidebar { border-right: 0; border-bottom: 1px solid var(--line-dark); padding: 0; }
-  .sidebar-label, .sidebar-note { display: none; }
+  .sidebar-note { display: none; }
   .section-nav { display: flex; overflow-x: auto; border: 0; scrollbar-width: thin; padding: 0 9px; }
   .section-nav > a { flex-shrink: 0; min-height: 45px; padding: 10px 11px 8px; font-size: var(--text-small); gap: 6px; border: 0; }
   .section-nav > a[aria-current] { border-bottom: 2px solid var(--red); }
@@ -491,10 +492,10 @@ body[data-screen="admin"] #site-dialog .button:not(.button--primary):hover { bac
   .map-stage { min-height: 360px; max-height: 660px; }
   .map-controls { top: 9px; right: 9px; }
   .map-controls button { width: 36px; height: 36px; }
-  /* 距離表示の場所を空け、狭い画面では凡例を縦に折り返す。 */
+  /* 右下の縮尺表示（MAP_CONFIG.scaleBarPixels＋余白）の場所を空け、狭い画面では凡例を縦に折り返す。 */
   .map-legend { max-width: calc(100% - 110px); }
   .map-legend button { font-size: var(--text-caption); padding: 4px 7px; }
-  .map-attribution { font-size: var(--text-caption); bottom: 5px; right: 8px; max-width: calc(100% - 16px); }
+  .map-scale-box { font-size: var(--text-caption); bottom: 5px; right: 8px; max-width: calc(100% - 16px); }
   .map-detail { top: auto; bottom: 10px; right: 10px; left: 10px; width: auto; max-height: 66%; padding: 21px 18px; }
   .map-detail h3 { font-size: var(--text-lead); }
   .map-below { font-size: var(--text-caption); gap: 6px; line-height: 1.9; }

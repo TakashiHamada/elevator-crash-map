@@ -1,5 +1,6 @@
 // 生成画像を原寸で読み取り登録した座標。画像を差し替える場合は建物・歩道の位置も採り直してください。
 // buildings.*.outline は屋根・外壁の外周（画像ピクセル座標）。切り抜き・色付け・当たり領域で共用します。
+// buildings.*.box / width / height は外周を囲む登録時の範囲で、画面の描画には使わず、テストで中心点・目撃地点の位置を検証するためだけに使います。
 export const MAP_LAYOUT = {
   // 配信用のWebP（npm run build:map-image で sourceImage から生成）。座標と指紋の基準は sourceImage のPNG。
   "image": "assets/misuta-realistic-map.webp",

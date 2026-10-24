@@ -30,7 +30,7 @@ export function breakingNewsHTML(state) {
   return `<div class="document-page breaking-news"><p class="section-label">最新のニュース</p><h2>市内の事故報道</h2>${articleHTML(state)}</div>`;
 }
 export function threadListHTML(threads, base, state) {
-  const readonlyNote = base.includes('/archive/') ? '保存された掲示板です。新しい書き込みはできません。' : '掲示板への新規書き込みは、現在受け付けていません。事故情報は「事故情報の投稿」からお寄せください。';
+  const readonlyNote = base.includes('/archive/') ? '保存された掲示板です。新しい書き込みはできません。' : '掲示板への新規書き込みは、現在受け付けていません。事故情報は「事故情報を投稿する」からお寄せください。';
   const rows = threads.map(thread => {
     const updated = thread.dynamic ? dateLabel(localDate(state.restoredAt)) + '　更新' : dateLabel(thread.date);
     return `<a class="thread-row${thread.dynamic ? ' thread-row--new' : ''}" href="${makeRoute(base, 'board', { thread: thread.id })}" data-thread-id="${thread.id}">
@@ -97,7 +97,7 @@ export function mapHTML(plottedRecords, sightings = [], archived = false) {
       <div class="map-world" id="map-world"></div>
       <div class="map-controls"><button type="button" data-map-action="in" aria-label="地図を拡大">＋</button><button type="button" data-map-action="out" aria-label="地図を縮小">−</button></div>
       <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${recordCount}</button><button type="button" data-map-layer="sightings" aria-pressed="true" ${sightings.length ? '' : 'disabled'}><i class="legend-sighting" aria-hidden="true">目</i> 目撃情報 ${sightings.length}</button></div>
-      <div class="map-attribution"><span id="map-scale">500 m</span></div>
+      <div class="map-scale-box"><span id="map-scale">500 m</span></div>
       <aside id="map-detail" class="map-detail" aria-labelledby="detail-title" hidden></aside>
     </div>
     <div class="map-below"><p>地図は上が北。赤：事故／青：目撃・証言。建物を押すと詳細、拡大で施設名・番地を表示。</p></div>`;
@@ -116,7 +116,7 @@ export function updatesHTML(snapshot, date, records) {
   return `<div class="document-page"><p class="section-label">更新履歴</p><h2>更新履歴</h2><dl class="updates">
     <div><dt>${dateLabel(date)}</dt><dd>${escapeHTML(UPDATE_NOTES[snapshot])}</dd></div>
     ${records.slice(0, 5).map(item => `<div><dt>${dateLabel(item.date)}</dt><dd>事故記録 ${escapeHTML(item.id)} を掲載しました。</dd></div>`).join('')}
-    </dl><p>情報の訂正・追加は「事故情報の投稿」からお寄せください。</p></div>`;
+    </dl><p>情報の訂正・追加は「事故情報を投稿する」からお寄せください。</p></div>`;
 }
 /** 「ニュース検索」画面の事故報道一覧（保存世代・現行サイト共通）。 */
 export function newsIndexHTML(records, base) {

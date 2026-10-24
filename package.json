@@ -9,7 +9,7 @@
     "check": "for file in *.js test/*.js; do node --check \"$file\" || exit 1; done",
     "test": "node --test",
     "build:map-image": "cwebp -quiet -q ${MAP_WEBP_QUALITY:-82} -m 6 assets/misuta-realistic-map.png -o assets/misuta-realistic-map.webp",
-    "build:avatar-image": "cwebp -quiet -q 85 -resize 106 106 assets/admin-avatar.png -o assets/admin-avatar.webp"
+    "build:avatar-image": "cwebp -quiet -q ${AVATAR_WEBP_QUALITY:-85} -resize 106 106 assets/admin-avatar.png -o assets/admin-avatar.webp"
   },
   "engines": {
     "node": ">=20"

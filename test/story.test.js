@@ -290,6 +290,8 @@ test('全ESモジュールのローカルimport先・HTMLの配信ファイル�
   }
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /src="app\.js" type="module"/u);
-  await access(new URL('../style.css', import.meta.url));
-  await access(new URL('../assets/elevator-crash.png', import.meta.url));
+  // index.html が読み込むローカルファイル（外部URL・ページ内リンクを除く）と、JSが組み立てる画像の参照先。
+  const localReferences = [...html.matchAll(/(?:href|src)="([^"#:]+)"/gu)].map(match => match[1]);
+  assert.ok(localReferences.includes('assets/favicon.svg') && localReferences.includes('style.css'));
+  for (const path of [...localReferences, 'assets/admin-avatar.webp']) await access(new URL('../' + path, import.meta.url));
 });

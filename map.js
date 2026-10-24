@@ -6,13 +6,18 @@ import { MAP_LAYOUT } from './map-layout.js';
 import { escapeHTML, dateLabel } from './community.js';
 import { localDate } from './game-state.js';
 
+/** 外周（[x, y] の配列、画像ピクセル座標）を囲む最小の長方形。 */
+function outlineBounds(outline) {
+  const xs = outline.map(([x]) => x), ys = outline.map(([, y]) => y);
+  return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) };
+}
+
 export function mapSVG() {
   const config = MAP_CONFIG;
   // 背景と同じ画像・原寸座標を参照し、建物の外周だけを切り抜く。拡大縮小や移動でも位置がずれない。
   const facilities = BUILDINGS.map(place => {
     const points = place.outline.map(point => point.join(',')).join(' ');
-    const left = Math.min(...place.outline.map(([x]) => x)), top = Math.min(...place.outline.map(([, y]) => y));
-    const right = Math.max(...place.outline.map(([x]) => x)), bottom = Math.max(...place.outline.map(([, y]) => y));
+    const { left, top, right, bottom } = outlineBounds(place.outline);
     return { place, points, left, top, width: right - left, height: bottom - top, bottom };
   });
   // 施設一覧を設けず、地図上の施設そのものをキーボード・支援技術から選べるようにする。
@@ -109,7 +114,8 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   // offsetX/Y: 画像左上の画面上の位置。画面上の倍率は displayScale() = fitScale × userZoom。
   let userZoom = 1, fitScale = 1, offsetX = 0, offsetY = 0, stageWidth = 0, stageHeight = 0, selectedId = null;
   let appliedScale = null;
-  let selectedPoint = null;
+  // 選択中の建物（目撃は地点のみ）を囲む範囲。詳細パネルの左右判定に使う（画像ピクセル座標）。
+  let selectedBounds = null;
   const pointers = new Map();
   let previousPinchDistance = null, lastFocus = null;
   let suppressMapClick = false;
@@ -124,8 +130,9 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     const mapWidth = config.width * scale, mapHeight = config.height * scale;
     offsetX = mapWidth <= stageWidth ? (stageWidth - mapWidth) / 2 : Math.min(0, Math.max(stageWidth - mapWidth, offsetX));
     offsetY = mapHeight <= stageHeight ? (stageHeight - mapHeight) / 2 : Math.min(0, Math.max(stageHeight - mapHeight, offsetY));
-    world.style.transform = `translate(${offsetX}px,${offsetY}px) scale(${scale})`;
+    // パネル位置の読み取りを transform の書き込みより先に済ませ、移動のたびの強制レイアウトを避ける。
     updatePanelPlacement();
+    world.style.transform = `translate(${offsetX}px,${offsetY}px) scale(${scale})`;
     if (scale === appliedScale) return;
     appliedScale = scale;
     // ピンとラベルは倍率の逆数で打ち消し、画面上で一定の大きさに見せる。
@@ -168,38 +175,40 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     world.querySelector('.map-building.is-selected')?.classList.remove('is-selected');
     if (buildingId) world.querySelector('.map-building[data-building-id="' + buildingId + '"]')?.classList.add('is-selected');
   }
-  // 地図端で移動が制限された後の建物の外周と、右側に置いた場合のパネルを比較する。
+  // 地図端で移動が制限された後の建物の範囲と、右側に置いた場合のパネルを比較する（画面上のpx）。
   // 左右の候補を固定して判定するので、左へ切り替えた直後に右へ戻ることはない。
   function updatePanelPlacement() {
-    if (panel.hidden || !selectedPoint) return;
-    const width = panel.offsetWidth, height = panel.offsetHeight;
-    if (!width || !height) return;
-    const currentLeft = panel.offsetLeft, top = panel.offsetTop;
-    const rightLeft = stage.dataset.detailSide === 'left' ? stageWidth - currentLeft - width : currentLeft;
-    const leftLeft = stageWidth - rightLeft - width;
-    const outline = selectedPoint.outline ?? [[selectedPoint.x, selectedPoint.y]];
+    if (panel.hidden || !selectedBounds) return;
+    const panelWidth = panel.offsetWidth, panelHeight = panel.offsetHeight;
+    if (!panelWidth || !panelHeight) return;
+    const panelTop = panel.offsetTop;
+    // 左右どちらに置いても地図枠との間隔（--map-detail-inset）は同じなので、今の位置から反対側の位置を求められる。
+    const panelXWhenRight = stage.dataset.detailSide === 'left' ? stageWidth - panel.offsetLeft - panelWidth : panel.offsetLeft;
+    const panelXWhenLeft = stageWidth - panelXWhenRight - panelWidth;
     const scale = displayScale(), gap = config.detailClearancePixels;
-    const left = offsetX + Math.min(...outline.map(([x]) => x)) * scale - gap;
-    const right = offsetX + Math.max(...outline.map(([x]) => x)) * scale + gap;
-    const upper = offsetY + Math.min(...outline.map(([, y]) => y)) * scale - gap;
-    const lower = offsetY + Math.max(...outline.map(([, y]) => y)) * scale + gap;
-    const overlaps = right > rightLeft && left < rightLeft + width && lower > top && upper < top + height;
-    // 下部いっぱいに広がるスマートフォンのパネルは、左右を切り替えない。
-    const side = overlaps && rightLeft > leftLeft ? 'left' : 'right';
+    const buildingLeft = offsetX + selectedBounds.left * scale - gap;
+    const buildingRight = offsetX + selectedBounds.right * scale + gap;
+    const buildingTop = offsetY + selectedBounds.top * scale - gap;
+    const buildingBottom = offsetY + selectedBounds.bottom * scale + gap;
+    const overlaps = buildingRight > panelXWhenRight && buildingLeft < panelXWhenRight + panelWidth
+      && buildingBottom > panelTop && buildingTop < panelTop + panelHeight;
+    // スマートフォンの下部パネルは全幅なので左右の候補が同じ位置になり、右のまま切り替わらない。
+    const side = overlaps && panelXWhenRight > panelXWhenLeft ? 'left' : 'right';
     if (stage.dataset.detailSide !== side) stage.dataset.detailSide = side;
   }
   function closeDetail(restoreFocus = false) {
     panel.hidden = true;
     markSelected({});
     selectedId = null;
-    selectedPoint = null;
+    selectedBounds = null;
     stage.dataset.detailSide = 'right';
     if (restoreFocus) lastFocus?.focus({ preventScroll: true });
     onSelect?.(null);
   }
   // 詳細パネルを開き、focus 指定時は選択地点がパネルに隠れない位置まで寄せる。
   function revealPanelAt(point, focus) {
-    selectedPoint = point;
+    // 建物は外周、目撃は地点そのものを、パネルと重ねない範囲にする。
+    selectedBounds = outlineBounds(point.outline ?? [[point.x, point.y]]);
     panel.hidden = false; panel.scrollTop = 0;
     if (!focus) { updatePanelPlacement(); return; }
     lastFocus = document.activeElement;
@@ -229,7 +238,7 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     onSelect?.(id);
   }
   stage.addEventListener('click', event => {
-    // ドラッグ・ピンチ終了時に発生するクリックでは詳細を閉じない。
+    // ドラッグ・ピンチ終了時に発生するクリックでは詳細を閉じない。detail 0 はキーボード由来のクリックなので抑止しない。
     if (suppressMapClick && event.detail !== 0) { suppressMapClick = false; return; }
     const layerButton = event.target.closest('[data-map-layer]');
     if (layerButton) {
