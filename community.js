@@ -100,7 +100,7 @@ export function mapHTML(plottedRecords, sightings = [], archived = false) {
       <div class="map-attribution"><span id="map-scale">500 m</span></div>
       <aside id="map-detail" class="map-detail" aria-labelledby="detail-title" hidden></aside>
     </div>
-    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。色の付いた建物を押すと施設情報を確認できます。拡大すると施設名と詳しい番地も表示されます。<br>地図は上が北です。</p><button class="text-link" data-action="report" ${archived ? 'disabled' : ''}>事故情報の投稿 →</button></div>`;
+    <div class="map-below"><p>地図は上が北。赤：事故／青：目撃・証言。建物を押すと詳細、拡大で施設名・番地を表示。</p></div>`;
 }
 export function postingHelpHTML(archived = false) {
   return `<div class="document-page"><p class="section-label">ご利用案内</p><h2>投稿方法</h2>

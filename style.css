@@ -224,8 +224,10 @@ button, a { touch-action: manipulation; }
 .record-comments small { font-size: var(--text-caption); color: #668365; }
 .record-comments > div p { margin: 4px 0; font-size: var(--body-size); }
 .comments-readonly { font-size: var(--text-caption); color: #989f90; margin-top: 14px; }
-.map-below { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 0; font-size: var(--text-caption); }
+.map-below { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 8px 0 0; font-size: var(--text-caption); }
 .map-below p { margin: 0; color: #858c7e; }
+/* 地図の説明文の下は、画面幅にかかわらず余白を小さくする。 */
+.content-panel:has(> .map-below) { padding-bottom: 12px; }
 
 /* ページ内の文章・ニュース */
 .document-page { max-width: 850px; padding: 8px 6px 30px; }
