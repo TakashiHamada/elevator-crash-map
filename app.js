@@ -104,10 +104,10 @@ function liveNoticeHTML(now) {
   return `<a class="new-post-notice" href="#/live?view=board"><span class="new-post-label">新着</span>市民掲示板に新しい書き込みがあります。<span aria-hidden="true">→</span></a>`;
 }
 function sidebarHTML(threads, recordCount) {
-  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース'], ['updates', '新着情報'], ['board', '市民掲示板'], ['profile', '管理人について']];
+  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース検索'], ['updates', '更新履歴'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
   return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
-    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>町内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report">事故情報を投稿する</button></div>
+    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>市内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report">事故情報を投稿する</button></div>
     </aside>`;
 }
 function contentHTML(records, plottedRecords, threads, sightings, now) {
