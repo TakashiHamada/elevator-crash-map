@@ -22,6 +22,8 @@ try { lastArchiveQuery = storage?.getItem(CONFIG.archiveQueryKey) ?? ''; } catch
 let hintsEnabled = false;
 try { hintsEnabled = storage?.getItem(CONFIG.hintsKey) === 'on'; } catch { /* タブ内で切り替えます。 */ }
 let hintConfirmationOpen = false;
+// 管理者が復元を確定した直後の画面だけ、長めの組み立て演出を使う。
+let restoreEntrancePending = false;
 // 公開サイト（保存世代・現行サイト）を表示中の状態。render() → publicHTML() が毎回設定する。
 let currentRoute, currentBase, currentSnapshot, currentView, mapInstance;
 let lastNewsVisible = false, renderedPhase = '', currentKey = '';
@@ -200,15 +202,34 @@ function endingHTML() {
 function stopClosingTransition() {
   closingTimers.forEach(clearTimeout); closingTimers = [];
   app.inert = false;
+  document.body.dataset.closing = '';
 }
-// サイト閉鎖後、1ページ目の閉鎖のお知らせを closingNoticeHold だけ見せ、closingFadeDuration かけて暗転してから8ページ目へ進む。
+// 管理者画面を下から解体した後、閉鎖のお知らせ→暗転→8ページ目へ進む。
 // 進行は呼び出し前に complete として保存済みなので、途中で再読み込みしても8ページ目から再開できる。
 function playClosingTransition() {
   stopClosingTransition();
+  document.body.dataset.pageEnter = 'off';
   mapInstance?.destroy(); mapInstance = null;
   if (dialog.open) dialog.close();
-  app.innerHTML = closureHTML() + '<div class="closing-curtain" aria-hidden="true"></div>';
   app.inert = true;
+  const button = document.querySelector('.admin-operation-button--close');
+  button.textContent = '公開を停止しています…';
+  button.disabled = true;
+  announcer.textContent = '公開を停止しています。';
+  // 長いメモの末尾から操作しても、今見えている範囲が下から消えるようにする。
+  app.style.setProperty('--shutdown-top', window.scrollY + 'px');
+  app.style.setProperty('--shutdown-bottom', (window.scrollY + window.innerHeight) + 'px');
+  app.style.setProperty('--shutdown-duration', CONFIG.closingDisassembleDuration + 'ms');
+  // サイト名はスクロール位置によらず最後まで残す。
+  app.insertAdjacentHTML('beforeend', `<div class="shutdown-brand" aria-hidden="true">${escapeHTML(CONFIG.name)}</div>`);
+  document.body.dataset.closing = 'dismantle';
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if (reducedMotion) showClosingNotice();
+  else closingTimers.push(setTimeout(showClosingNotice, CONFIG.closingDisassembleDuration));
+}
+function showClosingNotice() {
+  document.body.dataset.closing = '';
+  app.innerHTML = closureHTML() + '<div class="closing-curtain" aria-hidden="true"></div>';
   document.body.dataset.screen = 'closed';
   document.title = '閉鎖のお知らせ | ' + CONFIG.name;
   document.querySelector('meta[name="theme-color"]').content = '#f5f4ee';
@@ -222,6 +243,7 @@ function playClosingTransition() {
 }
 function render(options = {}) {
   stopClosingTransition();
+  const previousKey = currentKey;
   const previousScroll = window.scrollY;
   if (currentKey) scrollPositions.set(currentKey, previousScroll);
   mapInstance?.destroy(); mapInstance = null;
@@ -230,6 +252,10 @@ function render(options = {}) {
   const resolved = resolveRoute(requested, store.state, authenticated, lastArchiveQuery);
   if (resolved.redirect) { history.replaceState(null, '', resolved.redirect); requested = parseRoute(resolved.redirect); }
   currentRoute = requested; currentKey = location.hash;
+  // 初回表示と画面移動だけで組み立て演出を再生。進行同期などの描き直しでは繰り返さない。
+  document.body.dataset.pageEnter = !options.preserveScroll && currentKey !== previousKey ? 'on' : 'off';
+  document.body.dataset.pageRender = restoreEntrancePending && currentRoute.type === 'live' ? 'restore' : 'normal';
+  restoreEntrancePending = false;
   currentBase = ''; currentSnapshot = ''; currentView = '';
   const now = Date.now();
   document.body.dataset.screen = currentRoute.type;
@@ -343,7 +369,9 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'confirm-restore' && dialog.open && canOperateAdmin('closed')) {
-    store.dispatch({ type: 'restore' }); dialog.close(); navigate('#/live'); return;
+    store.dispatch({ type: 'restore' });
+    restoreEntrancePending = true;
+    dialog.close(); navigate('#/live'); return;
   }
   if (action === 'close-site' && canOperateAdmin('published')) {
     modal(adminConfirmHTML('サイトを閉鎖しますか？', '公開中の地図と掲示板は閲覧できなくなります。', 'confirm-close-site', 'サイトを閉鎖', 'admin-operation-button--close'));

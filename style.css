@@ -25,6 +25,11 @@
   --meta-modal-blur: 6px;
   --meta-modal-easing: cubic-bezier(.2, .8, .2, 1);
   --meta-modal-backdrop: #11182780;
+  /* 昔のブラウザー風の段階描画。通常は上限500ms、復元直後だけ2秒。0msで無効にできる。 */
+  --page-render-duration: 460ms;
+  --site-restore-duration: 2000ms;
+  --page-render-steps: 6;
+  --page-render-time: clamp(0ms, var(--page-render-duration), 500ms);
   --footer-min-height: 44px;
   --footer-padding-block: 6px;
   --footer-control-height: 26px;
@@ -143,6 +148,35 @@ body[data-hints="on"][data-snapshot="oldest"] .map-pin:not(.map-pin--sighting)::
 /* サイト閉鎖後、クリア画面へ移る前の暗転。時間は CONFIG.closingFadeDuration から --closing-fade に入る。 */
 .closing-curtain { position: fixed; inset: 0; z-index: 100; background: #000; opacity: 0; transition: opacity var(--closing-fade, 3000ms) ease-in; }
 .closing-curtain.is-dark { opacity: 1; }
+/* 確定直後は現在の表示範囲を下から消し、サイト名を最後に消す。時間はCONFIGから渡す。 */
+@keyframes page-disassemble {
+  from { clip-path: inset(0 0 max(0px, calc(100% - var(--shutdown-bottom))) 0); }
+  to { clip-path: inset(0 0 max(0px, calc(100% - var(--shutdown-top))) 0); }
+}
+@keyframes shutdown-brand-out {
+  from { clip-path: inset(0); }
+  to { clip-path: inset(0 0 100% 0); }
+}
+body[data-closing="dismantle"] .admin-shell {
+  animation: page-disassemble calc(var(--shutdown-duration) * .6) steps(var(--page-render-steps), end) calc(var(--shutdown-duration) * .2) forwards;
+}
+body[data-closing="dismantle"] .admin-operation-button--close {
+  transform: translateY(2px);
+  box-shadow: inset 0 3px 6px #0008;
+  opacity: 1;
+}
+.shutdown-brand {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 90;
+  padding: 22px 32px;
+  background: #101516;
+  color: #c0cdbf;
+  font-family: "Yu Mincho", serif;
+  font-size: 1.3125rem;
+  pointer-events: none;
+  animation: shutdown-brand-out calc(var(--shutdown-duration) * .2) steps(var(--page-render-steps), end) calc(var(--shutdown-duration) * .8) forwards;
+}
 
 /* アーカイブサービス */
 .archive-service { --link: #315c76; background: #fafbf8; }
@@ -671,7 +705,41 @@ body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button:not(.b
   .ending-story h1 { font-size: var(--text-lead); }
   .address-fields { gap: 14px; }
 }
+/* 配置は最初から確保し、上から段階的に描画する。地図のtransformやヒントの明滅とは分離。 */
+body[data-page-render="restore"] { --page-render-time: max(0ms, var(--site-restore-duration)); }
+@keyframes page-assemble {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0); }
+}
+body[data-page-enter="on"] :where(
+  .site-header, .archive-service-header, .admin-header,
+  .archive-capture-bar, .site-status-line, #live-notice,
+  .site-sidebar, .content-panel > *, .archive-search-main > *,
+  .closure-main > *, .admin-sidebar, .admin-content > *
+) {
+  animation: page-assemble calc(var(--page-render-time) * .65) steps(var(--page-render-steps), end) backwards;
+  animation-delay: calc(var(--page-render-time) * .25);
+}
+body[data-page-enter="on"] :where(.site-header, .archive-service-header, .admin-header, .archive-capture-bar) {
+  animation-duration: calc(var(--page-render-time) * .35);
+  animation-delay: 0ms;
+}
+body[data-page-enter="on"] :where(.site-status-line, #live-notice, .site-sidebar, .admin-sidebar, .archive-wordmark, .closure-viewers) {
+  animation-duration: calc(var(--page-render-time) * .45);
+  animation-delay: calc(var(--page-render-time) * .1);
+}
+body[data-page-enter="on"] :where(.content-panel > :nth-child(n+2), .archive-results, .archive-service-note, .closure-archive, .admin-operation) {
+  animation-delay: calc(var(--page-render-time) * .35);
+}
+/* フォーカスが来た部品は即時表示し、演出終了を待たずに操作できるようにする。 */
+body[data-page-enter="on"] :where(
+  .site-header, .archive-service-header, .admin-header,
+  .archive-capture-bar, .site-status-line, #live-notice,
+  .site-sidebar, .content-panel > *, .archive-search-main > *,
+  .closure-main > *, .admin-sidebar, .admin-content > *
+):focus-within { animation: none; }
 @media (prefers-reduced-motion: reduce) {
+  :root { --page-render-duration: 0ms; --site-restore-duration: 0ms; }
   *, *::before, *::after { scroll-behavior: auto !important; }
   #site-dialog[data-context="game"], #site-dialog[data-context="game"]::backdrop { transition: none; }
   body[data-hints="on"] [data-hint="action"] { animation: none; background: var(--hint-tint); box-shadow: 0 0 0 var(--hint-ring-size) var(--hint-color); }

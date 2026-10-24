@@ -37,7 +37,8 @@ export const CONFIG = {
   dynamicPostSpacing: 900,
   // 保存済みスレッドの投稿時刻。startHour時 startMinute分から minuteStep 分おきに並べる。
   archivedPostClock: { startHour: 21, startMinute: 10, minuteStep: 2 },
-  // サイト閉鎖後、閉鎖のお知らせ（1ページ目）を見せる時間と、その後クリア画面へ暗転する時間。
+  // 閉鎖確定後に画面を解体する時間、閉鎖のお知らせ（1ページ目）を見せる時間、その後の暗転時間。
+  closingDisassembleDuration: 1000,
   closingNoticeHold: 5000,
   closingFadeDuration: 3000,
   snapshotMiddleDate: '2024-10-18',

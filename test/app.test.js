@@ -7,7 +7,7 @@ import { createState, transition } from '../game-state.js';
 // 画面の見た目は扱わず、実際のapp.jsへイベントを送って検証する。
 // app.js はモジュール読み込み時にイベントを登録するので、テストごとに別のURLで読み込み直す。
 let appInstance = 0;
-async function loadAppAt(t, savedState, setupTimers = () => {}, { hash = '#/admin', hints = 'off' } = {}) {
+async function loadAppAt(t, savedState, setupTimers = () => {}, { hash = '#/admin', hints = 'off', reducedMotion = false } = {}) {
   const saved = new Map([[CONFIG.storageKey, JSON.stringify(savedState)]]);
   saved.set(CONFIG.hintsKey, hints);
   const storage = {
@@ -17,13 +17,18 @@ async function loadAppAt(t, savedState, setupTimers = () => {}, { hash = '#/admi
   };
   const windowEvents = new Map(), documentEvents = new Map();
   const curtain = { style: { setProperty() {} }, classList: { add() {} } };
-  const app = { innerHTML: '', inert: false, querySelector: () => curtain };
+  const app = {
+    innerHTML: '', inert: false, querySelector: () => curtain,
+    style: { setProperty() {} },
+    insertAdjacentHTML(_position, html) { this.innerHTML += html; }
+  };
   const elements = {
     '#app': app,
     '#site-dialog': { open: false, dataset: {}, addEventListener() {}, showModal() { this.open = true; }, close() { this.open = false; } },
     '#dialog-content': {},
     '#admin-password': { focus() {} },
     '#announcer': {},
+    '.admin-operation-button--close': { textContent: '', disabled: false },
     'meta[name="theme-color"]': {},
     '[data-action="toggle-hints"]': { textContent: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } }
   };
@@ -33,7 +38,8 @@ async function loadAppAt(t, savedState, setupTimers = () => {}, { hash = '#/admi
     history: { replaceState(_state, _unused, hash) { location.hash = hash; } },
     sessionStorage: { getItem: () => 'yes' },
     window: {
-      localStorage: storage, scrollY: 0, scrollTo() {},
+      localStorage: storage, scrollY: 0, innerHeight: 800, scrollTo() {},
+      matchMedia: () => ({ matches: reducedMotion }),
       addEventListener: (name, callback) => windowEvents.set(name, callback)
     },
     document: {
@@ -67,7 +73,7 @@ test('閉鎖演出中の別タブのリプレイを取り込み、演出後は�
   }, startedAt + CONFIG.newsDelay);
   const timers = new Map();
   let timerId = 0;
-  const { app, elements, location, storage, windowEvents, click, savedPhase } = await loadAppAt(t, published, () => {
+  const { app, elements, location, storage, windowEvents, click, savedPhase, body } = await loadAppAt(t, published, () => {
     t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
       timers.set(++timerId, { callback, delay });
       return timerId;
@@ -86,6 +92,11 @@ test('閉鎖演出中の別タブのリプレイを取り込み、演出後は�
   assert.equal(elements['#site-dialog'].open, false);
   assert.equal(savedPhase(), 'complete');
   assert.equal(app.inert, true);
+  assert.equal(body.dataset.closing, 'dismantle');
+  assert.equal(elements['.admin-operation-button--close'].textContent, '公開を停止しています…');
+  assert.equal(elements['.admin-operation-button--close'].disabled, true);
+  assert.match(app.innerHTML, /class="admin-shell"/);
+  assert.doesNotMatch(app.innerHTML, /class="closing-curtain"/, '解体が終わるまでは閉鎖のお知らせへ切り替えない');
   const closure = app.innerHTML;
 
   // 他のタブで初期化された保存内容を、このタブへstorageイベントとして届ける。
@@ -93,17 +104,44 @@ test('閉鎖演出中の別タブのリプレイを取り込み、演出後は�
   windowEvents.get('storage')({ key: CONFIG.storageKey });
   assert.equal(app.innerHTML, closure, '保存同期だけで演出中の画面を描き直さない');
 
-  for (const delay of [CONFIG.closingNoticeHold, CONFIG.closingFadeDuration]) {
+  for (const delay of [CONFIG.closingDisassembleDuration, CONFIG.closingNoticeHold, CONFIG.closingFadeDuration]) {
     const [id, timer] = timers.entries().next().value;
     timers.delete(id);
     assert.equal(timer.delay, delay);
     timer.callback();
+    if (delay === CONFIG.closingDisassembleDuration) {
+      assert.equal(body.dataset.closing, '');
+      assert.match(app.innerHTML, /class="closing-curtain"/);
+      assert.equal(app.inert, true, '閉鎖のお知らせと暗転の間も操作を止める');
+    }
   }
   assert.equal(location.hash, '#/ending');
   windowEvents.get('hashchange')();
   assert.equal(location.hash, '#/closed', '最新の保存に従ってルートを判定する');
   assert.equal(app.inert, false);
   assert.equal(timers.size, 0);
+});
+
+test('動きを減らす設定では解体の待機を省き、閉鎖のお知らせから既存の演出へ進む', async t => {
+  const startedAt = Date.parse('2026-10-23T12:00:00+09:00');
+  const restored = transition(createState(startedAt), { type: 'restore' }, startedAt);
+  const published = transition(restored, {
+    type: 'publish', report: { ...TARGET_BUILDING, source: NEWS_BODY }
+  }, startedAt + CONFIG.newsDelay);
+  const timers = [];
+  const { app, body, click, savedPhase } = await loadAppAt(t, published, () => {
+    t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
+      timers.push({ callback, delay });
+      return timers.length;
+    });
+  }, { reducedMotion: true });
+  await click('close-site');
+  await click('confirm-close-site');
+  assert.equal(savedPhase(), 'complete');
+  assert.equal(body.dataset.closing, '');
+  assert.match(app.innerHTML, /class="closing-curtain"/);
+  assert.doesNotMatch(app.innerHTML, /shutdown-brand/);
+  assert.deepEqual(timers.map(timer => timer.delay), [CONFIG.closingNoticeHold]);
 });
 
 test('サイトの復元は確認ダイアログで確定するまで実行しない', async t => {
