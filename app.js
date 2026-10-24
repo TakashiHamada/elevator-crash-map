@@ -300,10 +300,18 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'report') { openReport(); return; }
-  if (action === 'restore' && authenticated && currentRoute.type === 'admin') {
-    store.dispatch({ type: 'restore' }); navigate('#/live'); return;
+  if (action === 'restore' && authenticated && currentRoute.type === 'admin' && store.state.phase === 'closed') {
+    modal('<h2 id="modal-title">サイトを復元しますか？</h2><p>保存されている内容を使って、地図と掲示板の公開を再開します。</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">キャンセル</button><button class="button button--primary" type="button" data-action="confirm-restore">サイトを復元</button></div>');
+    return;
+  }
+  if (action === 'confirm-restore' && dialog.open && authenticated && currentRoute.type === 'admin' && store.state.phase === 'closed') {
+    store.dispatch({ type: 'restore' }); dialog.close(); navigate('#/live'); return;
   }
   if (action === 'close-site' && authenticated && currentRoute.type === 'admin' && store.state.phase === 'published') {
+    modal('<h2 id="modal-title">サイトを閉鎖しますか？</h2><p>公開中の地図と掲示板は閲覧できなくなります。</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">キャンセル</button><button class="button button--primary" type="button" data-action="confirm-close-site">サイトを閉鎖</button></div>');
+    return;
+  }
+  if (action === 'confirm-close-site' && dialog.open && authenticated && currentRoute.type === 'admin' && store.state.phase === 'published') {
     store.dispatch({ type: 'close' }); playClosingTransition(); return;
   }
   if (action === 'replay') {

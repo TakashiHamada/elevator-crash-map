@@ -22,7 +22,7 @@ test('閉鎖演出中の別タブのリプレイを取り込み、演出後は�
   const app = { innerHTML: '', inert: false, querySelector: () => curtain };
   const elements = {
     '#app': app,
-    '#site-dialog': { open: false, addEventListener() {} },
+    '#site-dialog': { open: false, addEventListener() {}, showModal() { this.open = true; }, close() { this.open = false; } },
     '#dialog-content': {},
     '#announcer': {},
     'meta[name="theme-color"]': {}
@@ -60,6 +60,14 @@ test('閉鎖演出中の別タブのリプレイを取り込み、演出後は�
 
   await import('../app.js');
   await documentEvents.get('click')({ target: { closest: () => ({ dataset: { action: 'close-site' } }) } });
+  assert.equal(elements['#site-dialog'].open, true);
+  assert.equal(JSON.parse(storage.getItem(CONFIG.storageKey)).phase, 'published', '確認前には閉鎖しない');
+  await documentEvents.get('click')({ target: { closest: () => ({ dataset: { action: 'dismiss' } }) } });
+  assert.equal(elements['#site-dialog'].open, false);
+  assert.equal(JSON.parse(storage.getItem(CONFIG.storageKey)).phase, 'published', 'キャンセル時は公開を維持する');
+  await documentEvents.get('click')({ target: { closest: () => ({ dataset: { action: 'close-site' } }) } });
+  await documentEvents.get('click')({ target: { closest: () => ({ dataset: { action: 'confirm-close-site' } }) } });
+  assert.equal(elements['#site-dialog'].open, false);
   assert.equal(JSON.parse(storage.getItem(CONFIG.storageKey)).phase, 'complete');
   assert.equal(app.inert, true);
   const closure = app.innerHTML;
