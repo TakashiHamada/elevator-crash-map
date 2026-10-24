@@ -10,9 +10,13 @@ export const MAP_CONFIG = {
   scaleUnits: [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000],
   // 拡大縮小しても画面上で一定に見せるラベルの大きさ（px）。
   labelFontSize: 14, labelStrokeWidth: 3, townFontSize: 16,
+  // 建物の外周から施設名までの間隔（画像上のpx）。
+  facilityLabelOffset: 12,
   // 施設・目撃を選んだときの最低ズームと、選択地点を寄せる表示枠内の位置（幅・高さに対する割合）。
   focusZoomNarrow: 2.3, focusZoomWide: 1.5, focusNarrowMaxWidth: 600,
   focusSideBySideMinWidth: 760, focusXSideBySide: 0.32, focusXStacked: 0.5, focusY: 0.4,
+  // 詳細パネルと選択した建物の間に確保する余白（画面上のpx）。
+  detailClearancePixels: 12,
   // ホイール1単位あたりのズーム感度と、矢印キー1回の移動量（px）。
   wheelZoomSensitivity: 0.0013, keyboardPanPixels: 65,
   // タップ・クリックとして許容する、押し始めからの移動距離（画面上のpx）。

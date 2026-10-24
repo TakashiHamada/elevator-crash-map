@@ -1,4 +1,5 @@
 // 生成画像を原寸で読み取り登録した座標。画像を差し替える場合は建物・歩道の位置も採り直してください。
+// buildings.*.outline は屋根・外壁の外周（画像ピクセル座標）。切り抜き・色付け・当たり領域で共用します。
 export const MAP_LAYOUT = {
   // 配信用のWebP（npm run build:map-image で sourceImage から生成）。座標と指紋の基準は sourceImage のPNG。
   "image": "assets/misuta-realistic-map.webp",
@@ -18,7 +19,13 @@ export const MAP_LAYOUT = {
         794,
         517
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [776, 498],
+        [794, 508],
+        [789, 519],
+        [771, 509]
+      ]
     },
     "sunheights": {
       "x": 480,
@@ -31,7 +38,13 @@ export const MAP_LAYOUT = {
         491,
         631
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [471, 622],
+        [491, 617],
+        [494, 627],
+        [474, 632]
+      ]
     },
     "station": {
       "x": 693,
@@ -44,7 +57,16 @@ export const MAP_LAYOUT = {
         706,
         473
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [686, 433],
+        [706, 435],
+        [705, 451],
+        [702, 474],
+        [686, 471],
+        [687, 447],
+        [685, 446]
+      ]
     },
     "station-north": {
       "x": 790,
@@ -57,7 +79,16 @@ export const MAP_LAYOUT = {
         811,
         351
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [775, 305],
+        [809, 314],
+        [806, 329],
+        [800, 349],
+        [774, 346],
+        [774, 334],
+        [767, 332]
+      ]
     },
     "warehouse": {
       "x": 1428,
@@ -70,7 +101,13 @@ export const MAP_LAYOUT = {
         1457,
         433
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [1407, 379],
+        [1453, 376],
+        [1457, 409],
+        [1411, 414]
+      ]
     },
     "housing": {
       "x": 677,
@@ -83,7 +120,13 @@ export const MAP_LAYOUT = {
         695,
         87
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [663, 75],
+        [692, 77],
+        [692, 84],
+        [663, 83]
+      ]
     },
     "library": {
       "x": 563,
@@ -96,7 +139,19 @@ export const MAP_LAYOUT = {
         584,
         135
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [557, 121],
+        [561, 122],
+        [562, 119],
+        [568, 121],
+        [568, 126],
+        [573, 127],
+        [571, 133],
+        [565, 132],
+        [565, 130],
+        [555, 128]
+      ]
     },
     "medical": {
       "x": 1001,
@@ -109,7 +164,13 @@ export const MAP_LAYOUT = {
         1011,
         406
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [992, 381],
+        [1001, 376],
+        [1012, 399],
+        [1004, 403]
+      ]
     },
     "shopping": {
       "x": 149,
@@ -122,7 +183,13 @@ export const MAP_LAYOUT = {
         165,
         435
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [144, 414],
+        [153, 419],
+        [147, 429],
+        [136, 425]
+      ]
     },
     "hall": {
       "x": 837,
@@ -135,7 +202,13 @@ export const MAP_LAYOUT = {
         844,
         476
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [834, 466],
+        [844, 470],
+        [843, 476],
+        [833, 474]
+      ]
     },
     "residence": {
       "x": 519,
@@ -148,7 +221,15 @@ export const MAP_LAYOUT = {
         531,
         261
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [517, 241],
+        [524, 247],
+        [529, 256],
+        [527, 259],
+        [511, 257],
+        [511, 250]
+      ]
     },
     "south": {
       "x": 682,
@@ -161,7 +242,14 @@ export const MAP_LAYOUT = {
         691,
         784
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [675, 760],
+        [690, 779],
+        [687, 782],
+        [680, 779],
+        [673, 772]
+      ]
     },
     "west-heights": {
       "x": 293,
@@ -174,7 +262,15 @@ export const MAP_LAYOUT = {
         302,
         420
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [287, 411],
+        [301, 414],
+        [300, 419],
+        [294, 418],
+        [294, 416],
+        [287, 415]
+      ]
     },
     "cold-storage": {
       "x": 973,
@@ -187,7 +283,13 @@ export const MAP_LAYOUT = {
         1008,
         906
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [943, 883],
+        [998, 875],
+        [1006, 893],
+        [949, 904]
+      ]
     },
     "green-housing": {
       "x": 255,
@@ -200,7 +302,15 @@ export const MAP_LAYOUT = {
         262,
         629
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [252, 610],
+        [260, 608],
+        [264, 619],
+        [260, 621],
+        [256, 619],
+        [254, 620]
+      ]
     },
     "department": {
       "x": 643,
@@ -213,7 +323,18 @@ export const MAP_LAYOUT = {
         658,
         342
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [634, 310],
+        [652, 308],
+        [653, 314],
+        [640, 314],
+        [636, 327],
+        [656, 327],
+        [657, 341],
+        [632, 341],
+        [628, 337]
+      ]
     },
     "east-third": {
       "x": 1303,
@@ -226,7 +347,13 @@ export const MAP_LAYOUT = {
         1308,
         381
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [1299, 368],
+        [1307, 368],
+        [1307, 380],
+        [1299, 380]
+      ]
     },
     "south-house": {
       "x": 513,
@@ -239,7 +366,13 @@ export const MAP_LAYOUT = {
         522,
         792
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [510, 781],
+        [518, 786],
+        [514, 791],
+        [505, 786]
+      ]
     },
     "first": {
       "x": 567,
@@ -252,7 +385,13 @@ export const MAP_LAYOUT = {
         577,
         275
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [559, 268],
+        [574, 262],
+        [576, 267],
+        [562, 274]
+      ]
     },
     "hospital": {
       "x": 1294,
@@ -265,7 +404,21 @@ export const MAP_LAYOUT = {
         1315,
         179
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [1278, 152],
+        [1289, 156],
+        [1287, 162],
+        [1291, 163],
+        [1293, 157],
+        [1313, 164],
+        [1307, 178],
+        [1296, 174],
+        [1299, 168],
+        [1289, 165],
+        [1288, 169],
+        [1272, 163]
+      ]
     },
     "city-hall": {
       "x": 953,
@@ -278,7 +431,13 @@ export const MAP_LAYOUT = {
         971,
         303
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [950, 272],
+        [971, 283],
+        [956, 301],
+        [936, 289]
+      ]
     },
     "school": {
       "x": 899,
@@ -291,7 +450,13 @@ export const MAP_LAYOUT = {
         917,
         131
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [880, 122],
+        [913, 120],
+        [914, 127],
+        [880, 130]
+      ]
     },
     "post": {
       "x": 135,
@@ -304,7 +469,13 @@ export const MAP_LAYOUT = {
         152,
         730
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [133, 710],
+        [142, 715],
+        [138, 721],
+        [130, 716]
+      ]
     },
     "hotel": {
       "x": 846,
@@ -317,7 +488,18 @@ export const MAP_LAYOUT = {
         865,
         694
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [848, 663],
+        [866, 672],
+        [859, 687],
+        [853, 683],
+        [856, 678],
+        [850, 674],
+        [847, 680],
+        [833, 675],
+        [838, 664]
+      ]
     },
     "east-hall": {
       "x": 1299,
@@ -330,7 +512,13 @@ export const MAP_LAYOUT = {
         1309,
         512
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [1290, 484],
+        [1304, 482],
+        [1308, 509],
+        [1295, 511]
+      ]
     },
     "seaside": {
       "x": 1230,
@@ -343,7 +531,13 @@ export const MAP_LAYOUT = {
         1269,
         780
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [1210, 711],
+        [1267, 733],
+        [1248, 778],
+        [1193, 755]
+      ]
     },
     "pump": {
       "x": 1058,
@@ -356,7 +550,13 @@ export const MAP_LAYOUT = {
         1071,
         910
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [1044, 889],
+        [1056, 882],
+        [1071, 900],
+        [1058, 910]
+      ]
     },
     "new-office": {
       "x": 1312,
@@ -369,7 +569,13 @@ export const MAP_LAYOUT = {
         1334,
         616
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [1292, 587],
+        [1327, 580],
+        [1333, 608],
+        [1298, 615]
+      ]
     },
     "community": {
       "x": 909,
@@ -382,7 +588,13 @@ export const MAP_LAYOUT = {
         915,
         836
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [903, 824],
+        [913, 821],
+        [917, 833],
+        [906, 836]
+      ]
     },
     "park-office": {
       "x": 384,
@@ -395,7 +607,13 @@ export const MAP_LAYOUT = {
         393,
         207
       ],
-      "prominent": true
+      "prominent": true,
+      "outline": [
+        [382, 197],
+        [390, 201],
+        [386, 207],
+        [379, 203]
+      ]
     },
     "nagihama-third": {
       "x": 1307,
@@ -408,7 +626,13 @@ export const MAP_LAYOUT = {
         1320,
         768
       ],
-      "prominent": false
+      "prominent": false,
+      "outline": [
+        [1297, 750],
+        [1319, 755],
+        [1316, 768],
+        [1294, 763]
+      ]
     }
   },
   "sightingLocations": {

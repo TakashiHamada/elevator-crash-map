@@ -11,12 +11,23 @@
   --green: #527357;
   --sidebar-width: 270px;
   --map-height: 65dvh;
-  /* 地図上で施設情報を開ける建物の色付け（通常時と、hover・選択時）。枠線は拡大率によらず画面上で同じ太さ。 */
-  --facility-fill: #3478bf1f;
-  --facility-stroke: #3478bf99;
-  --facility-fill-active: #3478bf40;
-  --facility-stroke-active: #3478bf;
-  --facility-stroke-width: 1px;
+  --map-detail-inset: 12px;
+  /* 切り抜いた建物の色・陰影。選択中はサイト共通の赤にする。輪郭の太さは画面上で一定。 */
+  --facility-fill: #3478bf55;
+  --facility-stroke: #38678b;
+  --facility-fill-active: #428fd77a;
+  --facility-stroke-active: #215e91;
+  --facility-fill-selected: color-mix(in srgb, var(--red) 72%, transparent);
+  --facility-stroke-selected: var(--red);
+  --facility-label-selected: var(--red);
+  --facility-stroke-width: .8px;
+  --facility-stroke-width-active: 1.5px;
+  --facility-stroke-width-selected: 2px;
+  --facility-image-contrast: 1.2;
+  --facility-image-brightness: .94;
+  --facility-shadow: #24425e55;
+  --facility-glow-selected: var(--red);
+  --facility-hit-padding: 6px;
   /* 本文18px・補足16px・注記14px。remでブラウザーの文字サイズ設定にも追従する。 */
   --body-size: 1.125rem;
   --text-small: 1rem;
@@ -167,14 +178,24 @@ button, a { touch-action: manipulation; }
 .block-labels text { font-size: var(--map-label-size, var(--text-caption)); fill: #898b88; }
 .map-stage:not([data-detail-level="street"]) .block-labels { display: none; }
 .map-building { cursor: pointer; }
-.map-building rect { fill: var(--facility-fill); stroke: var(--facility-stroke); stroke-width: calc(var(--facility-stroke-width) * var(--inverse-scale, 1)); }
+.map-building:focus-visible { outline: none; }
+.building-cutout { overflow: hidden; pointer-events: none; filter: contrast(var(--facility-image-contrast)) brightness(var(--facility-image-brightness)); }
+.building-tint { fill: var(--facility-fill); }
+.building-contour { fill: none; stroke: var(--facility-stroke); stroke-width: calc(var(--facility-stroke-width) * var(--inverse-scale, 1)); stroke-linejoin: round; filter: drop-shadow(0 1px 1px var(--facility-shadow)); pointer-events: none; }
+/* 小さな建物も押しやすいよう、透明な当たり領域だけを外周の周りへ広げる。 */
+.building-hit-area { fill: transparent; stroke: transparent; stroke-width: calc(var(--facility-hit-padding) * var(--inverse-scale, 1)); stroke-linejoin: round; pointer-events: all; }
 .map-building text { display: none; font-size: var(--map-label-size, var(--text-caption)); fill: #525a60; }
 .map-stage[data-detail-level="street"] .map-building text,
 .map-stage[data-detail-level="district"] .map-building--prominent text,
 /* キーボードで施設を選んでいる間も、hover・選択時と同じ強調を表示する。 */
 .map-building:hover text, .map-building:focus-visible text, .map-building.is-selected text { display: block; }
-.map-building:hover rect, .map-building:focus-visible rect, .map-building.is-selected rect { fill: var(--facility-fill-active); stroke: var(--facility-stroke-active); }
-.map-building:hover text, .map-building:focus-visible text, .map-building.is-selected text { fill: #235e98; }
+.map-building:hover .building-tint, .map-building:focus-visible .building-tint { fill: var(--facility-fill-active); }
+.map-building:hover .building-contour, .map-building:focus-visible .building-contour { stroke: var(--facility-stroke-active); stroke-width: calc(var(--facility-stroke-width-active) * var(--inverse-scale, 1)); }
+.map-building:hover text, .map-building:focus-visible text { fill: var(--facility-stroke-active); }
+.map-building.is-selected .building-cutout { filter: none; }
+.map-building.is-selected .building-tint { fill: var(--facility-fill-selected); }
+.map-building.is-selected .building-contour { stroke: var(--facility-stroke-selected); stroke-width: calc(var(--facility-stroke-width-selected) * var(--inverse-scale, 1)); filter: drop-shadow(0 0 3px var(--facility-glow-selected)); }
+.map-building.is-selected text { fill: var(--facility-label-selected); font-weight: 600; }
 
 .map-pin { position: absolute; width: 25px; height: 34px; padding: 0; border: 0; border-radius: 0; background: transparent; color: white; font-family: Georgia, serif; line-height: 1; font-size: 1.25rem; font-weight: 700; filter: drop-shadow(0 1px 1px #30383b55); transform: translate(-50%, -100%) scale(var(--inverse-scale)); transform-origin: 50% 100%; z-index: 2; }
 .map-pin::before { content: ""; position: absolute; inset: 0 0 7px; background: var(--red); border: 2px solid #fff; border-radius: 4px; }
@@ -206,7 +227,8 @@ button, a { touch-action: manipulation; }
 .sighting-note { font-size: var(--text-caption); line-height: 1.9; color: #8b9486; border-top: 1px solid var(--line); padding-top: 15px; margin-top: 20px; }
 .map-attribution { position: absolute; bottom: 5px; right: 7px; font-size: var(--text-caption); color: #78816e; background: #fffefaac; padding: 0 4px; pointer-events: none; }
 #map-scale { display: inline-block; border-bottom: 2px solid #747c6e; text-align: center; white-space: nowrap; font-family: ui-monospace, monospace; }
-.map-detail { position: absolute; top: 12px; right: 12px; width: 400px; max-height: calc(100% - 48px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; border: 1px solid #979e8a; background: var(--white); box-shadow: 2px 3px 12px #2c3a2924; padding: 23px 22px; cursor: auto; z-index: 5; }
+.map-stage[data-detail-side="left"] { --map-detail-left: var(--map-detail-inset); --map-detail-right: auto; }
+.map-detail { position: absolute; top: var(--map-detail-inset); right: var(--map-detail-right, var(--map-detail-inset)); left: var(--map-detail-left, auto); width: 400px; max-height: calc(100% - 48px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; border: 1px solid #979e8a; background: var(--white); box-shadow: 2px 3px 12px #2c3a2924; padding: 23px 22px; cursor: auto; z-index: 5; }
 .detail-close { position: absolute; top: 5px; right: 7px; background: none; border: 0; width: 35px; height: 35px; font-size: 1.625rem; color: #7b8675; }
 .detail-kicker { color: #969e8e; font-size: var(--text-caption); letter-spacing: .08em; margin: 0 25px 8px 0; }
 .map-detail h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 6px; padding-right: 10px; }
