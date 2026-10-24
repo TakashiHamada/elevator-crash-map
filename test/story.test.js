@@ -4,7 +4,7 @@ import { readFile, access } from 'node:fs/promises';
 import { CONFIG, NEWS, NEWS_BODY, THREADS, ADMIN_MEMO, FLOOD_THREAD } from '../board-data.js';
 import { ACCIDENTS, BUILDINGS, TARGET_BUILDING, TARGET_BUILDING_ID, addressOf, recordsForSnapshot } from '../data.js';
 import { createState, isValidState, localDate, dateShift, snapshotDates, newsIsVisible, normalizeText, isCorrectPassword, matchesArchiveQuery, validateReport, transition, viewerCount, visibleThreads, parseRoute, resolveRoute, createStore } from '../game-state.js';
-import { profileHTML, threadHTML, mapHTML, reportHTML, escapeHTML, updatesHTML } from '../community.js';
+import { profileHTML, threadHTML, mapHTML, reportHTML, escapeHTML, updatesHTML, postingHelpHTML } from '../community.js';
 import { mapRecords, mapSVG, buildingDetailHTML } from '../map.js';
 
 const startedAt = Date.parse('2026-10-23T00:15:00+09:00');
@@ -81,7 +81,7 @@ test('復元は一度だけ実行され、再訪でタイマーが巻き戻ら�
   assert.equal(state.restoredAt, restoredAt);
 });
 test('正しい住所と記事本文・見出し・全文のコピーを受理する', () => {
-  for (const source of [NEWS_BODY, NEWS.title, NEWS.title + '\n' + NEWS_BODY, '霧原日報\n' + NEWS.title + '\n' + NEWS_BODY + '\n社会／霧原市', NEWS_BODY.replaceAll('\n', '\r\n　')]) {
+  for (const source of [NEWS_BODY, NEWS.title, NEWS.title + '\n' + NEWS_BODY, '三栖田日報\n' + NEWS.title + '\n' + NEWS_BODY + '\n社会／三栖田市', NEWS_BODY.replaceAll('\n', '\r\n　')]) {
     assert.deepEqual(validateReport({ ...correctReport, source }), { ok: true });
   }
 });
@@ -156,17 +156,17 @@ test('所在地・事故IDは一意で、新しい現場は初期の事故に含
   assert.ok(ACCIDENTS.every(record => record.buildingId !== TARGET_BUILDING_ID));
 });
 test('ニュースの位置・階数とメモの設備条件に一致する現場が1つになる', () => {
-  // ニュースの「霧川東岸・線路より南・汐見大橋より河口側」に当たる、生成地図の南東部の範囲（画像ピクセル座標）。
+  // ニュースの「三栖川東岸・線路より南・凪浜大橋より河口側」に当たる、生成地図の南東部の範囲（画像ピクセル座標）。
   const southeastOfRiverAndRailway = place => place.x > 1240 && place.y > 680;
   const candidates = BUILDINGS.filter(place => southeastOfRiverAndRailway(place) && place.floors === 5 && place.built < 1980 && !ACCIDENTS.some(record => record.buildingId === place.id) && place.elevator.includes('更新記録なし'));
   assert.deepEqual(candidates.map(item => item.id), [TARGET_BUILDING_ID]);
-  assert.equal(addressOf(TARGET_BUILDING), '霧原市汐見町3丁目6番地');
+  assert.equal(addressOf(TARGET_BUILDING), '三栖田市凪浜町3丁目6番地');
 });
 test('生成地図の上に全施設・川・鉄道・橋・番地のラベルが揃う', () => {
   const svg = mapSVG();
   assert.equal((svg.match(/class="map-building(?: map-building--prominent)?"/gu) || []).length, BUILDINGS.length);
   for (const place of BUILDINGS) assert.ok(svg.includes('data-building-id="' + place.id + '"'));
-  for (const clue of ['kirihara-realistic-map.png', '霧原線', '汐見大橋', '霧川', '三丁目', '>6</text>']) assert.ok(svg.includes(clue), clue);
+  for (const clue of ['misuta-realistic-map.png', '三栖田線', '凪浜大橋', '三栖川', '三丁目', '>6</text>']) assert.ok(svg.includes(clue), clue);
 });
 test('保存状態は再読み込みで復帰し、タイマー基準を保つ', () => {
   const storage = memoryStorage();
@@ -210,7 +210,7 @@ test('最初から遊ぶ操作は認証以外の全進行を新しい開始状�
 test('8画面と掲示板・施設のパラメーターを正しく読み取る', () => {
   for (const [hash, type] of [['#/closed', 'closed'], ['#/archive', 'archive'], ['#/archive/latest', 'snapshot'], ['#/archive/middle', 'snapshot'], ['#/archive/oldest', 'snapshot'], ['#/admin', 'admin'], ['#/live', 'live'], ['#/ending', 'ending']]) assert.equal(parseRoute(hash).type, type);
   assert.equal(parseRoute('#/archive/latest?view=board&thread=profile').params.get('thread'), 'profile');
-  assert.equal(parseRoute('#/live?view=map&building=shiomi-third').params.get('building'), TARGET_BUILDING_ID);
+  assert.equal(parseRoute('#/live?view=map&building=nagihama-third').params.get('building'), TARGET_BUILDING_ID);
   assert.equal(parseRoute('#/archive/future').type, 'home');
 });
 test('URL直打ちでは復元・認証・結末の条件を飛ばせない', () => {
@@ -221,6 +221,11 @@ test('URL直打ちでは復元・認証・結末の条件を飛ばせない', ()
   assert.equal(resolveRoute(parseRoute('#/live'), complete(), true).redirect, '#/ending');
   assert.equal(resolveRoute(parseRoute('#/admin'), restored(), true).route.type, 'admin');
 });
+test('魚拓は検索語なしで開くと、最後に検索した語の結果へ振り替える', () => {
+  assert.equal(resolveRoute(parseRoute('#/archive'), closed(), false).route.type, 'archive');
+  assert.equal(resolveRoute(parseRoute('#/archive'), closed(), false, '三栖田えれ(β)').redirect, '#/archive?q=' + encodeURIComponent('三栖田えれ(β)'));
+  assert.equal(resolveRoute(parseRoute('#/archive?q=abc'), closed(), false, '三栖田えれ(β)').route.type, 'archive');
+});
 test('入力用HTMLを安全にエスケープし、ニュースの内容は文字幅を正規化する', () => {
   assert.equal(escapeHTML('<img src=x onerror="alert(1)">'), '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
   assert.equal(normalizeText('５人\r\n　行方不明'), '5人行方不明');
@@ -230,15 +235,29 @@ test('投稿・施設一覧・掲示板の画面部品に操作用の情報が�
   assert.match(reportHTML(), /name="chome"/u);
   assert.match(reportHTML(), /name="lot"/u);
   assert.match(reportHTML(), /name="source"/u);
-  assert.match(mapHTML(ACCIDENTS, '#/live'), /旧汐見第三ビル/u);
+  assert.match(mapSVG(), /旧凪浜第三ビル/u);
   const thread = visibleThreads('live', restored(), publishedAt).find(item => item.id === 'revival');
   assert.match(threadHTML(thread, '#/live', restored()), /記事本文をコピー/u);
-  assert.match(updatesHTML('latest', snapshotDates(closed()).latest, ACCIDENTS), /KR-018/u);
+  assert.match(updatesHTML('latest', snapshotDates(closed()).latest, ACCIDENTS), /MS-018/u);
+});
+test('保存ページでも当時の画面のままで、アーカイブである旨の説明や施設一覧を出さない', () => {
+  assert.doesNotMatch(postingHelpHTML(), /アーカイブ/u);
+  assert.match(postingHelpHTML(), /data-action="report"/u);
+  assert.doesNotMatch(mapHTML(ACCIDENTS), /facility-index|施設を一覧/u);
+  assert.doesNotMatch(profileHTML('middle'), /modal-title/u);
+});
+test('ログイン欄の入力例はパスワードと同じ桁数で、正解とは異なる', () => {
+  const example = CONFIG.passwordPlaceholder.replace(/^例：/u, '');
+  assert.match(example, /^\d+$/u);
+  assert.equal(example.length, CONFIG.password.length);
+  assert.notEqual(example, CONFIG.password);
 });
 test('演出値は設定に集約され、待機ループが無制限に走らない', () => {
   assert.ok(CONFIG.tickInterval >= 250);
   assert.equal(CONFIG.newsDelay, 5000); // 脚本指定の「5秒後にニュースが出る」
   assert.ok(CONFIG.floodDuration > CONFIG.floodPostInterval);
+  assert.equal(CONFIG.closingNoticeHold, 5000); // 閉鎖ページを5秒見せる
+  assert.equal(CONFIG.closingFadeDuration, 3000); // 3秒かけて暗転
 });
 test('投稿フォームの丁目・番地は1から施設の最大値まで並び、正解の所在地を選べる', () => {
   const form = reportHTML();

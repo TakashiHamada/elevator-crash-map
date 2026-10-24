@@ -11,6 +11,12 @@
   --green: #527357;
   --sidebar-width: 220px;
   --map-height: 65dvh;
+  /* 地図上で施設情報を開ける建物の色付け（通常時と、hover・選択時）。枠線は拡大率によらず画面上で同じ太さ。 */
+  --facility-fill: #3478bf1f;
+  --facility-stroke: #3478bf99;
+  --facility-fill-active: #3478bf40;
+  --facility-stroke-active: #3478bf;
+  --facility-stroke-width: 1px;
   --body-size: 14px;
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
   color: var(--ink);
@@ -39,11 +45,9 @@ button, a { touch-action: manipulation; }
 .site-brand span { font-family: serif; font-size: 17px; font-weight: 400; letter-spacing: 0; padding-left: 8px; }
 .admin-link { border: 0; background: none; color: var(--link); font-size: 12px; padding: 10px 0 10px 12px; display: flex; align-items: center; gap: 7px; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 .admin-link:disabled { color: #8c9085; text-decoration: none; }
-.site-footer { margin-top: auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px; min-height: 62px; padding: 15px 30px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
-.footer-about { display: flex; flex-wrap: wrap; gap: 4px 18px; }
-.footer-about button, .footer-center button { border: 0; padding: 0; background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--link); font-size: inherit; }
-.footer-center { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 4px; }
-.footer-separator { color: #aaa; margin-inline: 8px; }
+/* 全ページ共通のフッター（ゲームの外側のメタ情報）。 */
+.site-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 18px; min-height: 62px; padding: 15px 30px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+.footer-about { border: 0; padding: 0; background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--link); font-size: inherit; }
 .page-number { white-space: nowrap; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; color: var(--ink); font-size: 13px; justify-self: end; letter-spacing: .05em; }
 .page-number > span { color: #94988d; font-size: 11px; margin-inline: 3px; }
 .viewer-display { display: flex; gap: 5px; align-items: center; font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -67,6 +71,10 @@ button, a { touch-action: manipulation; }
 .closure-notice h1 { font-size: clamp(19px, 2.6vw, 25px); line-height: 2; font-weight: 500; letter-spacing: .025em; margin-bottom: 23px; }
 .closure-notice > p:not(.closure-caption) { color: var(--muted); font-size: 14px; }
 .closure-signature { margin-top: 47px; padding-top: 19px; border-top: 1px solid var(--line); text-align: right; font-size: 12px; color: var(--muted); }
+.closure-archive { position: absolute; left: 0; right: 0; bottom: 32px; margin: 0; padding-inline: 30px; text-align: center; font-size: 11px; color: var(--muted); }
+/* サイト閉鎖後、クリア画面へ移る前の暗転。時間は CONFIG.closingFadeDuration から --closing-fade に入る。 */
+.closing-curtain { position: fixed; inset: 0; z-index: 100; background: #000; opacity: 0; transition: opacity var(--closing-fade, 3000ms) ease-in; }
+.closing-curtain.is-dark { opacity: 1; }
 
 /* アーカイブサービス */
 .archive-service { --link: #315c76; background: #fafbf8; }
@@ -105,10 +113,10 @@ button, a { touch-action: manipulation; }
 .no-results { padding: 32px 0 0; font-size: 15px; }
 
 /* 公開・保存ページ共通 */
-.archive-capture-bar { background: #e7e6d6; border-block: 1px solid #cdcfbd; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 8px 24px; color: #686c58; font-size: 10px; }
-.archive-capture-bar > a { color: #5c6b5b; white-space: nowrap; }
-.archive-capture-bar > a:first-child { text-decoration: none; font-size: 11px; }
-.archive-capture-bar > a:first-child span { font-size: 17px; margin-right: 4px; }
+/* 魚拓の上部バー: 左に保存一覧への戻り、中央に保存日、右は空欄。 */
+.archive-capture-bar { background: #e7e6d6; border-block: 1px solid #cdcfbd; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; padding: 8px 24px; color: #686c58; font-size: 10px; }
+.archive-capture-bar > a { color: #5c6b5b; white-space: nowrap; justify-self: start; text-decoration: none; font-size: 11px; }
+.archive-capture-bar > a span { margin-right: 4px; }
 .capture-readonly { margin-left: 7px; color: #8b907a; }
 .public-shell .site-header { min-height: 73px; padding-block: 9px; }
 .public-shell .site-brand { font-size: 31px; }
@@ -155,12 +163,12 @@ button, a { touch-action: manipulation; }
 .block-labels text { font-size: var(--map-label-size, 11px); fill: #898b88; }
 .map-stage:not([data-detail-level="street"]) .block-labels { display: none; }
 .map-building { cursor: pointer; }
-.map-building rect { fill: transparent; stroke: transparent; stroke-width: 1.5px; }
+.map-building rect { fill: var(--facility-fill); stroke: var(--facility-stroke); stroke-width: calc(var(--facility-stroke-width) * var(--inverse-scale, 1)); }
 .map-building text { display: none; font-size: var(--map-label-size, 11px); fill: #525a60; }
 .map-stage[data-detail-level="street"] .map-building text,
 .map-stage[data-detail-level="district"] .map-building--prominent text,
 .map-building:hover text, .map-building.is-selected text { display: block; }
-.map-building:hover rect, .map-building.is-selected rect { fill: #3478bf18; stroke: #3478bf; }
+.map-building:hover rect, .map-building.is-selected rect { fill: var(--facility-fill-active); stroke: var(--facility-stroke-active); }
 .map-building:hover text, .map-building.is-selected text { fill: #235e98; }
 
 .map-pin { position: absolute; width: 25px; height: 34px; padding: 0; border: 0; border-radius: 0; background: transparent; color: white; font-family: Georgia, serif; line-height: 1; font-size: 18px; font-weight: 700; filter: drop-shadow(0 1px 1px #30383b55); transform: translate(-50%, -100%) scale(var(--inverse-scale)); transform-origin: 50% 100%; z-index: 2; }
@@ -189,6 +197,8 @@ button, a { touch-action: manipulation; }
 .map-legend button:disabled { opacity: .45; }
 .map-legend i { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 16px; background: var(--red); color: white; font: normal 10px Georgia, serif; }
 .map-legend i.legend-sighting { width: 15px; height: 15px; border-radius: 50%; background: #357eb8; font: normal 8px sans-serif; }
+.legend-facility { display: inline-flex; align-items: center; gap: 6px; min-height: 29px; padding: 4px 9px; color: #65715f; font-size: 10px; border-left: 1px solid #d9ddd3; }
+.map-legend .legend-facility i { width: 13px; height: 11px; background: var(--facility-fill); border: 1px solid var(--facility-stroke); }
 .map-pin--sighting { background: #357eb8; border: 2px solid #fff; border-radius: 50%; width: 21px; height: 21px; font: 10px/1 sans-serif; z-index: 1; transform: translate(-50%, -50%) scale(var(--inverse-scale)); transform-origin: 50% 50%; }
 .map-pin--sighting > span { position: static; font: 10px/1 sans-serif; }
 .map-pin--sighting::before, .map-pin--sighting::after { display: none; }
@@ -219,12 +229,6 @@ button, a { touch-action: manipulation; }
 .comments-readonly { font-size: 10px; color: #989f90; margin-top: 14px; }
 .map-below { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 0; font-size: 11px; }
 .map-below p { margin: 0; color: #858c7e; }
-.facility-index { border-top: 1px solid var(--line); font-size: 11px; }
-.facility-index summary { padding: 12px 0; cursor: pointer; color: #6e7a65; }
-.facility-index > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 20px; padding-bottom: 14px; }
-.facility-index a { display: flex; flex-direction: column; border-bottom: 1px solid #e0e2d7; padding: 11px 0; text-decoration: none; }
-.facility-index a > span { text-decoration: underline; }
-.facility-index a small { color: #89917f; font-size: 10px; margin-top: 3px; }
 
 /* ページ内の文章・ニュース */
 .document-page { max-width: 850px; padding: 8px 6px 30px; }
@@ -232,7 +236,6 @@ button, a { touch-action: manipulation; }
 .document-page > h3 { font-size: 16px; font-weight: 500; margin: 34px 0 12px; }
 .document-page > p { max-width: 700px; line-height: 2.1; }
 .document-note { font-size: 12px; color: #818b77; border-top: 1px solid var(--line); padding-top: 20px; margin-top: 28px; }
-.archive-warning { color: #8b7852; font-size: 12px; }
 .news-index > a { display: flex; flex-direction: column; padding: 18px 0; border-bottom: 1px solid var(--line); text-decoration: none; }
 .news-index time { color: #919787; font-size: 10px; }
 .news-index strong { font-size: 15px; font-weight: 500; text-decoration: underline; margin: 5px 0; }
@@ -354,8 +357,8 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
 .admin-operation-button--close:hover { background: #50382f; }
 .admin-public-message > span { color: #839e75; font-size: 8px; margin-right: 5px; }
 .admin-operation > a { font-size: 12px; }
-.admin-footer, .ending-footer { padding: 21px 32px; border-top: 1px solid #29382e; display: flex; justify-content: space-between; font-size: 10px; color: #5b7162; }
-.admin-footer .page-number, .ending-footer .page-number { color: #9ab09f; }
+.admin-shell .site-footer, .ending-shell .site-footer { border-top-color: #29382e; color: #5b7162; }
+.admin-shell .page-number, .ending-shell .page-number { color: #9ab09f; }
 
 /* クリアと本編への導線 */
 .ending-main { width: min(700px, 100%); margin: auto; padding: 66px 35px 65px; }
@@ -388,7 +391,6 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
   :root { --sidebar-width: 185px; }
   .site-sidebar { padding-inline: 17px; }
   .content-panel { padding-inline: 18px; }
-  .facility-index > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sidebar-label { font-size: 9px; }
   .map-detail { width: 330px; }
   .admin-layout { gap: 35px; }
@@ -406,10 +408,9 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
   .closure-notice h1 { font-size: clamp(17px, 4.5vw, 22px); line-height: 2.1; }
   .closure-notice > p:not(.closure-caption) { font-size: 12px; }
   .closure-signature { font-size: 10px; margin-top: 36px; }
-  .site-footer { padding: 16px 18px; grid-template-columns: 1fr auto; gap: 9px 18px; font-size: 9px; }
-  .footer-about { grid-column: 1; gap: 2px 12px; }
-  .footer-center { grid-row: 2; grid-column: 1 / -1; justify-content: flex-start; }
-  .page-number { grid-column: 2; grid-row: 1; font-size: 11px; }
+  .site-footer { min-height: 52px; padding: 14px 18px; font-size: 10px; }
+  .closure-archive { bottom: 24px; padding-inline: 22px; font-size: 10px; }
+  .page-number { font-size: 11px; }
   .page-number > span { font-size: 9px; }
   .archive-service-header { padding: 15px 19px; font-size: 9px; }
   .archive-service-header > span { font-size: 8px; letter-spacing: .05em; }
@@ -426,10 +427,8 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
   .archive-result-date > span { font-size: 10px; }
   .archive-result-text h3 { font-size: 15px; }
   .archive-result-text p { font-size: 9px; }
-  .archive-capture-bar { flex-wrap: wrap; padding: 7px 16px; gap: 3px 10px; line-height: 1.6; font-size: 9px; }
-  .archive-capture-bar > a:first-child { font-size: 10px; margin-right: auto; }
-  .archive-capture-bar > span { order: 3; width: 100%; }
-  .archive-capture-bar > a:last-child { font-size: 9px; }
+  .archive-capture-bar { grid-template-columns: 1fr; padding: 7px 16px; gap: 3px; line-height: 1.6; font-size: 9px; }
+  .archive-capture-bar > a { font-size: 10px; }
   .capture-readonly { margin-left: 5px; }
   .site-status-line { padding: 9px 17px; font-size: 9px; gap: 8px; }
   .site-status-line > span { font-size: 8px; }
@@ -457,15 +456,11 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
   .map-controls button { width: 36px; height: 36px; }
   .map-north { right: 21px; }
   .map-legend { left: 8px; bottom: 28px; }
-  .map-legend button { font-size: 9px; padding: 4px 7px; }
+  .map-legend button, .map-legend .legend-facility { font-size: 9px; padding: 4px 7px; }
   .map-attribution { font-size: 7px; bottom: 5px; right: 5px; }
   .map-detail { top: auto; bottom: 10px; right: 10px; left: 10px; width: auto; max-height: 66%; padding: 21px 18px; }
   .map-detail h3 { font-size: 17px; }
   .map-below { font-size: 10px; gap: 6px; line-height: 1.9; }
-  .facility-index { font-size: 10px; }
-  .facility-index > div { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 13px; }
-  .facility-index a { padding: 11px 0; min-height: 54px; }
-  .facility-index a small { font-size: 8px; }
   .new-post-notice { padding: 9px 17px; font-size: 10px; gap: 8px; }
   .new-post-label { font-size: 8px; }
   .document-page { padding: 4px 2px 20px; }
@@ -523,7 +518,6 @@ body[data-screen="admin"], body[data-screen="ending"] { background: #101516; col
   .admin-memo h1 { font-size: 23px; padding-bottom: 23px; margin-bottom: 35px; }
   .admin-memo > p:not(.admin-note-label) { font-size: 14px; line-height: 2.3; margin-bottom: 27px; }
   .admin-operation { margin-top: 42px; }
-  .admin-footer, .ending-footer { padding: 18px 22px; font-size: 9px; }
   .ending-main { padding: 46px 28px 42px; }
   .ending-floor { font-size: 34px; margin-bottom: 34px; }
   .ending-congratulations { font-size: 12px; }

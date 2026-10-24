@@ -138,7 +138,7 @@ test('目撃ピン・詳細・表示レイヤーが同じ証言を指す', () =>
     assert.ok(detail.includes(item.body));
     assert.ok(detail.includes('data-building-id="' + item.buildingId + '"'));
   }
-  const controls = mapHTML(ACCIDENTS, '#/live', SIGHTINGS);
+  const controls = mapHTML(ACCIDENTS, SIGHTINGS);
   assert.match(controls, /data-map-layer="accidents"/u);
   assert.match(controls, /data-map-layer="sightings"/u);
   assert.match(controls, /目撃情報 6/u);
