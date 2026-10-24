@@ -167,9 +167,10 @@ button, a { touch-action: manipulation; }
 .map-building text { display: none; font-size: var(--map-label-size, 11px); fill: #525a60; }
 .map-stage[data-detail-level="street"] .map-building text,
 .map-stage[data-detail-level="district"] .map-building--prominent text,
-.map-building:hover text, .map-building.is-selected text { display: block; }
-.map-building:hover rect, .map-building.is-selected rect { fill: var(--facility-fill-active); stroke: var(--facility-stroke-active); }
-.map-building:hover text, .map-building.is-selected text { fill: #235e98; }
+/* キーボードで施設を選んでいる間も、hover・選択時と同じ強調を表示する。 */
+.map-building:hover text, .map-building:focus-visible text, .map-building.is-selected text { display: block; }
+.map-building:hover rect, .map-building:focus-visible rect, .map-building.is-selected rect { fill: var(--facility-fill-active); stroke: var(--facility-stroke-active); }
+.map-building:hover text, .map-building:focus-visible text, .map-building.is-selected text { fill: #235e98; }
 
 .map-pin { position: absolute; width: 25px; height: 34px; padding: 0; border: 0; border-radius: 0; background: transparent; color: white; font-family: Georgia, serif; line-height: 1; font-size: 18px; font-weight: 700; filter: drop-shadow(0 1px 1px #30383b55); transform: translate(-50%, -100%) scale(var(--inverse-scale)); transform-origin: 50% 100%; z-index: 2; }
 .map-pin::before { content: ""; position: absolute; inset: 0 0 7px; background: var(--red); border: 2px solid #fff; border-radius: 4px; }

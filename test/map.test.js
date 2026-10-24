@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { MAP_LAYOUT } from '../map-layout.js';
 import { MAP_CONFIG, BUILDINGS, ACCIDENTS, SIGHTINGS, TARGET_BUILDING, sightingsForSnapshot } from '../data.js';
 import { snapshotDates, createState } from '../game-state.js';
-import { mapSVG, sightingPinsHTML, sightingDetailHTML, mapScale } from '../map.js';
+import { mapSVG, sightingPinsHTML, sightingDetailHTML, mapScale, mountMap } from '../map.js';
 import { mapHTML } from '../community.js';
 
 // PNGの画素を直接読み、座標が道路・水面・建物のどこに当たるかを検証します。
@@ -142,4 +142,85 @@ test('目撃ピン・詳細・表示レイヤーが同じ証言を指す', () =>
   assert.match(controls, /data-map-layer="accidents"/u);
   assert.match(controls, /data-map-layer="sightings"/u);
   assert.match(controls, /目撃情報 6/u);
+});
+test('全施設を支援技術から識別でき、キーボードでフォーカスできる', () => {
+  // 生成SVGの階層を追い、施設自身だけでなく祖先の aria-hidden も確認する。
+  const ancestors = [], facilities = new Map();
+  for (const [tag] of mapSVG().matchAll(/<\/?([\w-]+)\b[^>]*>/gu)) {
+    if (tag.startsWith('</')) { ancestors.pop(); continue; }
+    const attributes = Object.fromEntries([...tag.matchAll(/([\w:-]+)="([^"]*)"/gu)].map(([, key, value]) => [key, value]));
+    if (attributes['data-building-id']) {
+      assert.ok([...ancestors, attributes].every(item => item['aria-hidden'] !== 'true'), attributes['data-building-id']);
+      facilities.set(attributes['data-building-id'], attributes);
+    }
+    if (!tag.endsWith('/>')) ancestors.push(attributes);
+  }
+  assert.equal(facilities.size, BUILDINGS.length);
+  for (const place of BUILDINGS) {
+    const attributes = facilities.get(place.id);
+    assert.ok(attributes, place.id);
+    assert.equal(attributes.tabindex, '0', place.id);
+    assert.equal(attributes.role, 'button', place.id);
+    assert.equal(attributes['aria-label'], place.name + 'の施設情報', place.id);
+    assert.equal(attributes['aria-controls'], 'map-detail', place.id);
+    assert.equal(attributes['aria-expanded'], 'false', place.id);
+  }
+});
+test('EnterとSpaceで事故未掲載の施設を選び、Escapeで元の施設にフォーカスを戻せる', () => {
+  // レイアウトの見た目は検証せず、mountMap の選択・フォーカス・イベント処理に必要なDOMだけを用意する。
+  const originalGlobals = new Map(['document', 'ResizeObserver'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const handlers = new Map(), selected = [], attributes = new Map(), classes = new Set();
+  const facility = {
+    dataset: { buildingId: TARGET_BUILDING.id },
+    classList: { add: name => classes.add(name), remove: name => classes.delete(name) },
+    setAttribute: (name, value) => attributes.set(name, value),
+    closest: selector => selector === '.map-building' ? facility : null,
+    focus() { globalThis.document.activeElement = facility; }
+  };
+  const style = () => ({ setProperty() {} });
+  const closeButton = { focus() { globalThis.document.activeElement = closeButton; } };
+  const panel = { hidden: true, innerHTML: '', querySelector: () => closeButton };
+  const world = {
+    style: style(),
+    querySelectorAll: () => [facility],
+    querySelector: selector => selector === '.map-building.is-selected'
+      ? (classes.has('is-selected') ? facility : null) : facility
+  };
+  const elements = new Map([
+    ['#map-world', world], ['#map-detail', panel], ['#map-scale', { style: style() }],
+    ['[data-map-action="in"]', {}], ['[data-map-action="out"]', {}]
+  ]);
+  const stage = {
+    clientWidth: 800, clientHeight: 500, dataset: {},
+    querySelector: selector => elements.get(selector),
+    addEventListener: (type, handler) => handlers.set(type, handler)
+  };
+  let map;
+  try {
+    globalThis.document = { activeElement: facility };
+    globalThis.ResizeObserver = class { observe() {} disconnect() {} };
+    assert.ok(ACCIDENTS.every(record => record.buildingId !== TARGET_BUILDING.id));
+    map = mountMap(stage, { plottedRecords: ACCIDENTS, onSelect: id => selected.push(id) });
+    for (const key of ['Enter', ' ']) {
+      let prevented = false;
+      handlers.get('keydown')({ key, target: facility, preventDefault() { prevented = true; } });
+      assert.equal(prevented, true, key);
+      assert.equal(selected.at(-1), TARGET_BUILDING.id, key);
+      assert.equal(panel.hidden, false, key);
+      assert.ok(panel.innerHTML.includes(TARGET_BUILDING.name), key);
+      assert.ok(panel.innerHTML.includes('この施設の事故情報は登録されていません。'), key);
+      assert.equal(attributes.get('aria-expanded'), 'true', key);
+      assert.equal(globalThis.document.activeElement, closeButton, key);
+      handlers.get('keydown')({ key: 'Escape', target: closeButton });
+      assert.equal(panel.hidden, true);
+      assert.equal(attributes.get('aria-expanded'), 'false');
+      assert.equal(globalThis.document.activeElement, facility);
+    }
+  } finally {
+    map?.destroy();
+    for (const [key, descriptor] of originalGlobals) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  }
 });

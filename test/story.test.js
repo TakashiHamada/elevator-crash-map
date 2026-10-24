@@ -230,7 +230,7 @@ test('入力用HTMLを安全にエスケープし、ニュースの内容は文�
   assert.equal(escapeHTML('<img src=x onerror="alert(1)">'), '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
   assert.equal(normalizeText('５人\r\n　行方不明'), '5人行方不明');
 });
-test('投稿・施設一覧・掲示板の画面部品に操作用の情報が揃う', () => {
+test('投稿・施設ラベル・掲示板・新着情報の画面部品に必要な情報が揃う', () => {
   assert.match(reportHTML(), /name="town"/u);
   assert.match(reportHTML(), /name="chome"/u);
   assert.match(reportHTML(), /name="lot"/u);
@@ -240,7 +240,8 @@ test('投稿・施設一覧・掲示板の画面部品に操作用の情報が�
   assert.match(threadHTML(thread, '#/live', restored()), /記事本文をコピー/u);
   assert.match(updatesHTML('latest', snapshotDates(closed()).latest, ACCIDENTS), /MS-018/u);
 });
-test('保存ページでも当時の画面のままで、アーカイブである旨の説明や施設一覧を出さない', () => {
+// 保存ページの投稿方法も当時の文面を使い、施設とプロフィールは地図・本文内に表示する。
+test('投稿方法に魚拓専用の注記を出さず、施設一覧とプロフィールのモーダル用IDを除く', () => {
   assert.doesNotMatch(postingHelpHTML(), /アーカイブ/u);
   assert.match(postingHelpHTML(), /data-action="report"/u);
   assert.doesNotMatch(mapHTML(ACCIDENTS), /facility-index|施設を一覧/u);

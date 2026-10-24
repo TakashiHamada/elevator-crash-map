@@ -372,8 +372,10 @@ dialog.addEventListener('click', event => {
 window.addEventListener('hashchange', () => render());
 // 別タブで進行が変わったら追従する（sessionStorage はタブごとなので監視しない）。
 window.addEventListener('storage', event => {
-  if (closingTimers.length) return;
-  if (event.key === CONFIG.storageKey || event.key === null) { store.sync(); render({ preserveScroll: true }); }
+  if (event.key !== CONFIG.storageKey && event.key !== null) return;
+  // 演出中も別タブのリプレイなどは取り込む。描画だけを保留し、演出後のルート判定に最新の進行を使う。
+  store.sync();
+  if (!closingTimers.length) render({ preserveScroll: true });
 });
 document.addEventListener('visibilitychange', updateLiveScreen);
 render();
