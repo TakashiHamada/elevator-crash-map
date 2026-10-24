@@ -60,10 +60,10 @@ button, a { touch-action: manipulation; }
 .viewer-display--busy strong { color: var(--red); font-weight: 700; }
 .viewer-display--busy .viewer-dot { background: var(--red); }
 .text-link { padding: 0; background: none; border: 0; color: var(--link); text-decoration: underline; text-underline-offset: 3px; font-size: inherit; }
-.text-link:hover { color: var(--red); }
+.text-link:not(:disabled):hover { color: var(--red); }
 .button { min-height: 44px; border: 1px solid var(--line-dark); padding: 10px 20px; border-radius: 0; background: #eaece3; color: var(--ink); text-decoration: none; }
 .button--primary { background: var(--red); color: white; border-color: var(--red); }
-.button--primary:hover { background: #882c24; }
+.button--primary:not(:disabled):hover { background: #882c24; }
 .initial-loading, .noscript-message { padding: 50px 24px; text-align: center; }
 .storage-note { margin: 0; padding: 12px 24px; background: #eee4c8; color: #625a42; font-size: var(--text-small); text-align: center; }
 

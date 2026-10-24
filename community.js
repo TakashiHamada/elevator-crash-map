@@ -90,7 +90,7 @@ export function reportHTML() {
     </form>`;
 }
 /** 地図画面の枠。plottedRecords は地図に出す事故（掲載済みなら投稿分を含む。map.js の mapRecords で作る）。 */
-export function mapHTML(plottedRecords, sightings = []) {
+export function mapHTML(plottedRecords, sightings = [], archived = false) {
   const recordCount = plottedRecords.length;
   return `<div class="map-heading"><div><p class="section-label">三栖田市／事故記録</p><h2>エレベーター事故マップ</h2></div><span class="record-total"><strong>${recordCount}</strong> 件</span></div>
     <div class="map-stage" id="map-stage" tabindex="0" role="region" aria-label="三栖田市の地図。矢印キーで移動、プラス・マイナスで拡大縮小できます。">
@@ -100,16 +100,16 @@ export function mapHTML(plottedRecords, sightings = []) {
       <div class="map-attribution"><span id="map-scale">500 m</span></div>
       <aside id="map-detail" class="map-detail" aria-labelledby="detail-title" hidden></aside>
     </div>
-    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。色の付いた建物を押すと施設情報を確認できます。拡大すると施設名と詳しい番地も表示されます。<br>地図は上が北です。</p><button class="text-link" data-action="report">事故情報の投稿 →</button></div>`;
+    <div class="map-below"><p>赤い印は事故、青い印は目撃・証言です。色の付いた建物を押すと施設情報を確認できます。拡大すると施設名と詳しい番地も表示されます。<br>地図は上が北です。</p><button class="text-link" data-action="report" ${archived ? 'disabled' : ''}>事故情報の投稿 →</button></div>`;
 }
-export function postingHelpHTML() {
+export function postingHelpHTML(archived = false) {
   return `<div class="document-page"><p class="section-label">ご利用案内</p><h2>投稿方法</h2>
     <p>市内のエレベーター事故について、情報をお持ちの方はご協力ください。</p>
     <h3>1. 事故のあった場所を確認する</h3><p>地図で所在地を確認し、投稿画面で「地名」「丁目」「番地」の正しい組み合わせを選んでください。建物名を押すと、所在地と施設情報が表示されます。</p>
     <h3>2. ニュース記事を添える</h3><p>情報の出典として、事故を伝えるニュース記事のタイトル、または記事本文を貼り付けてください。出典の分からない情報は掲載できません。</p>
     <h3>3. 管理人による確認</h3><p>確認できた情報を地図に掲載します。一部の地点は、投稿を即時反映するよう設定しています。</p>
     <p class="document-note">個人の名前や連絡先など、事故と関係のない個人情報は入力しないでください。</p>
-    <button class="button button--primary" data-action="report">事故情報を投稿する</button></div>`;
+    <button class="button button--primary" data-action="report" ${archived ? 'disabled' : ''}>事故情報を投稿する</button></div>`;
 }
 /** 「更新履歴」画面。snapshot は保存世代か 'live'、date はその世代の更新日。 */
 export function updatesHTML(snapshot, date, records) {

@@ -103,16 +103,16 @@ function liveNoticeHTML(now) {
   if (!isLive() || !newsIsVisible(store.state, now)) return '';
   return `<a class="new-post-notice" href="#/live?view=board"><span class="new-post-label">新着</span>市民掲示板に新しい書き込みがあります。<span aria-hidden="true">→</span></a>`;
 }
-function sidebarHTML(threads, recordCount) {
+function sidebarHTML(threads, recordCount, archived = false) {
   const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース検索'], ['updates', '更新履歴'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
   return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
-    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>市内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report">事故情報を投稿する</button></div>
+    <div class="sidebar-note"><h2>情報をお寄せください</h2><p>市内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report" ${archived ? 'disabled' : ''}>事故情報を投稿する</button></div>
     </aside>`;
 }
 function contentHTML(records, plottedRecords, threads, sightings, now) {
   const archived = currentRoute.type === 'snapshot';
-  if (currentView === 'post') return postingHelpHTML();
+  if (currentView === 'post') return postingHelpHTML(archived);
   if (currentView === 'profile') return `<div class="document-page">${profileHTML(currentSnapshot)}</div>`;
   if (currentView === 'updates') return updatesHTML(currentSnapshot, archived ? snapshotDates(store.state)[currentSnapshot] : localDate(store.state.restoredAt), records);
   if (currentView === 'news') return `<div id="breaking-article">${!archived && newsIsVisible(store.state, now) ? breakingNewsHTML(store.state) : ''}</div>${newsIndexHTML(records, currentBase)}`;
@@ -120,7 +120,7 @@ function contentHTML(records, plottedRecords, threads, sightings, now) {
     const thread = threads.find(item => item.id === currentRoute.params.get('thread'));
     return thread ? threadHTML(thread, currentBase, store.state) : threadListHTML(threads, currentBase, store.state);
   }
-  return mapHTML(plottedRecords, sightings);
+  return mapHTML(plottedRecords, sightings, archived);
 }
 function publicHTML(now) {
   const archived = currentRoute.type === 'snapshot';
@@ -138,7 +138,7 @@ function publicHTML(now) {
   return { html: `<div class="site-shell public-shell">${archivedBar}${headerHTML(currentBase, archived)}
     <div class="site-status-line"><span>三栖田市のエレベーター事故の情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
     <div id="live-notice">${liveNoticeHTML(now)}</div>
-    <main class="public-layout">${sidebarHTML(threads, plottedRecords.length)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
+    <main class="public-layout">${sidebarHTML(threads, plottedRecords.length, archived)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
     ${footerHTML(page)}</div>`, plottedRecords, sightings };
 }
 // 管理者画面下部の操作。閉鎖中は「復元」、現場掲載後は「再閉鎖」（クリア条件）、その間は公開中の案内。
@@ -247,7 +247,7 @@ function render(options = {}) {
   if (resolved.login) login();
 }
 function openReport() {
-  // 保存ページでは当時のボタンが残っているだけで、押しても何も起きない。
+  // 保存ページの投稿ボタンは無効。直接呼び出された場合も投稿画面を開かない。
   if (!isLive()) return;
   if (store.state.phase === 'published') { modal('<h2 id="modal-title">事故情報を掲載しました</h2><p>お寄せいただいた事故情報は、地図に掲載されています。</p>'); return; }
   modal(reportHTML());
