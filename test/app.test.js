@@ -18,7 +18,8 @@ async function loadAppAt(t, savedState, setupTimers = () => {}, { hash = '#/admi
   const windowEvents = new Map(), documentEvents = new Map();
   const curtain = { style: { setProperty() {} }, classList: { add() {} } };
   const app = {
-    innerHTML: '', inert: false, querySelector: () => curtain,
+    innerHTML: '', inert: false,
+    querySelector: selector => selector === '.admin-operation-button--close' ? elements[selector] : curtain,
     style: { setProperty() {} },
     insertAdjacentHTML(_position, html) { this.innerHTML += html; }
   };
@@ -145,7 +146,7 @@ test('動きを減らす設定では解体の待機を省き、閉鎖のお知�
 });
 
 test('サイトの復元は確認ダイアログで確定するまで実行しない', async t => {
-  const { app, elements, location, storage, windowEvents, documentEvents, click, savedPhase } = await loadAppAt(t, createState(Date.parse('2026-10-23T12:00:00+09:00')));
+  const { app, elements, location, storage, windowEvents, documentEvents, click, savedPhase, body } = await loadAppAt(t, createState(Date.parse('2026-10-23T12:00:00+09:00')));
   assert.match(app.innerHTML, /data-action="restore" data-hint="action">サイトを復元/);
   await click('restore');
   assert.equal(elements['#site-dialog'].open, true);
@@ -165,12 +166,14 @@ test('サイトの復元は確認ダイアログで確定するまで実行し�
   t.mock.method(Date, 'now', () => now);
   windowEvents.get('hashchange')();
   assert.doesNotMatch(app.innerHTML, /class="new-post-notice"/, 'ニュース到着前に新着案内のヒントを出さない');
+  assert.equal(body.dataset.pageEnter, 'on');
   elements['#live-notice'] = { innerHTML: '' };
   elements['[data-board-count]'] = { textContent: '' };
   now += CONFIG.newsDelay;
   documentEvents.get('visibilitychange')();
   assert.match(elements['#live-notice'].innerHTML, /class="new-post-notice" href="#\/live\?view=board" data-hint="action"/);
   assert.match(elements['#live-notice'].innerHTML, /市民掲示板に新しい書き込みがあります。/);
+  assert.equal(body.dataset.pageEnter, 'off', '新着の部分差し替えでは組み立て演出を再生しない');
 });
 
 test('ヒントは確認後にオン、オフは即時、再利用時は再確認する', async t => {
@@ -237,7 +240,7 @@ test('ヒントは保存・画面移動後も有効で、指定の保存世代�
   assert.doesNotMatch(app.innerHTML, /data-hint="action"/, 'スレッドのリンクも明滅させず、タイトルだけ赤くする');
   assert.doesNotMatch(app.innerHTML, /data-thread-id="filming" data-hint/);
   move('#/archive/latest?view=board&thread=profile');
-  assert.match(app.innerHTML, /<p data-hint="text">よく考えたらここのパスワードが割れそうだったので<\/p>/);
+  assert.match(app.innerHTML, /<p><span data-hint="text">よく考えたらここのパスワードが割れそうだったので<\/span><\/p>/);
   assert.equal((app.innerHTML.match(/data-hint="text"/gu) ?? []).length, 1);
 
   move('#/archive/middle?view=updates');

@@ -19,8 +19,10 @@ try { authenticated = sessionStorage.getItem(CONFIG.sessionKey) === 'yes'; } cat
 // 魚拓の検索語。魚拓に戻るたびにサイト名を入れ直さなくてよいよう、最後の検索を覚えておく。
 let lastArchiveQuery = '';
 try { lastArchiveQuery = storage?.getItem(CONFIG.archiveQueryKey) ?? ''; } catch { /* 保存を使えない場合はタブ内で覚えます。 */ }
+// ヒント表示のオン・オフ。ゲーム進行とは別に保存し、body[data-hints] で style.css の強調を切り替える。
 let hintsEnabled = false;
 try { hintsEnabled = storage?.getItem(CONFIG.hintsKey) === 'on'; } catch { /* タブ内で切り替えます。 */ }
+// 「ヒントを使いますか？」の確認中だけ true。別のダイアログの操作でヒントを確定させない。
 let hintConfirmationOpen = false;
 // 管理者が復元を確定した直後の画面だけ、長めの組み立て演出を使う。
 let restoreEntrancePending = false;
@@ -71,12 +73,13 @@ function pageNumberHTML(page) {
 }
 function headerHTML(base = '#/closed', archived = false) {
   return `<header class="site-header"><a class="site-brand" href="${base}" aria-label="三栖田えれ ベータ ホーム">三栖田えれ<span>(β)</span></a>
-    <button class="admin-link" type="button" data-action="login" ${currentRoute?.type === 'closed' && !archived ? 'data-hint="action"' : ''} ${archived ? 'disabled' : ''}><svg viewBox="0 0 16 18" width="12" height="14" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2M2 7h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>${authenticated && !archived ? '管理者画面' : '管理者ログイン'}</button></header>`;
+    <button class="admin-link" type="button" data-action="login" ${currentRoute?.type === 'closed' ? 'data-hint="action"' : ''} ${archived ? 'disabled' : ''}><svg viewBox="0 0 16 18" width="12" height="14" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2M2 7h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>${authenticated && !archived ? '管理者画面' : '管理者ログイン'}</button></header>`;
 }
 // 全8ページ共通のフッター。ゲームの外側（メタ情報）だけを載せ、物語内のリンクは各ページの本文側に置く。
 function footerHTML(page) {
-  return `<footer class="site-footer"><button class="footer-about" type="button" data-action="about">このページについて</button><button class="footer-hints" type="button" data-action="toggle-hints" aria-pressed="${hintsEnabled}">${hintsEnabled ? 'ヒントをオフにする' : 'ヒントを使う'}</button>${pageNumberHTML(page)}</footer>`;
+  return `<footer class="site-footer"><button class="footer-about" type="button" data-action="about">このページについて</button><button class="footer-hints" type="button" data-action="toggle-hints" aria-pressed="${hintsEnabled}">${hintToggleLabel(hintsEnabled)}</button>${pageNumberHTML(page)}</footer>`;
 }
+const hintToggleLabel = enabled => enabled ? 'ヒントをオフにする' : 'ヒントを使う';
 function setHintsEnabled(enabled) {
   hintsEnabled = enabled;
   try { storage?.setItem(CONFIG.hintsKey, enabled ? 'on' : 'off'); } catch { /* 保存を使えない場合も切り替えます。 */ }
@@ -84,7 +87,7 @@ function setHintsEnabled(enabled) {
   document.body.dataset.hints = enabled ? 'on' : 'off';
   const button = document.querySelector('[data-action="toggle-hints"]');
   if (button) {
-    button.textContent = enabled ? 'ヒントをオフにする' : 'ヒントを使う';
+    button.textContent = hintToggleLabel(enabled);
     button.setAttribute('aria-pressed', String(enabled));
   }
 }
@@ -125,7 +128,7 @@ function liveNoticeHTML(now) {
 function sidebarHTML(threads, recordCount, archived = false) {
   const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース検索'], ['updates', '更新履歴'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
-  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${archived && currentSnapshot === 'middle' && key === 'profile' ? 'data-hint="action"' : ''} ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
+  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentSnapshot === 'middle' && key === 'profile' ? 'data-hint="action"' : ''} ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
     <div class="sidebar-note"><h2>情報をお寄せください</h2><p>市内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report" ${archived ? 'disabled' : ''}>事故情報を投稿する</button></div>
     </aside>`;
 }
@@ -212,7 +215,8 @@ function playClosingTransition() {
   mapInstance?.destroy(); mapInstance = null;
   if (dialog.open) dialog.close();
   app.inert = true;
-  const button = document.querySelector('.admin-operation-button--close');
+  // 確認ダイアログの確定ボタンも同じクラスを持つため、#app 内の操作ボタンに限定する。
+  const button = app.querySelector('.admin-operation-button--close');
   button.textContent = '公開を停止しています…';
   button.disabled = true;
   announcer.textContent = '公開を停止しています。';
@@ -315,6 +319,8 @@ function refreshViewerCount(now) {
 }
 function revealNewsArrival(threads, now) {
   lastNewsVisible = true;
+  // 差し替えた部品が .content-panel > * に一致しても、組み立て演出を再生しない。
+  document.body.dataset.pageEnter = 'off';
   document.querySelector('#live-notice').innerHTML = liveNoticeHTML(now);
   document.querySelector('[data-board-count]').textContent = threads.length;
   if (currentView === 'board' && !currentRoute.params.has('thread')) document.querySelector('#content-panel').innerHTML = threadListHTML(threads, currentBase, store.state);
@@ -328,7 +334,7 @@ function appendFloodPosts(threads) {
   const posts = document.querySelector(`[data-thread-posts="${FLOOD_THREAD.id}"]`);
   if (posts && posts.children.length < thread.posts.length) {
     const start = posts.children.length;
-    posts.insertAdjacentHTML('beforeend', thread.posts.slice(start).map((post, index) => postHTML(post, start + index, thread, store.state)).join(''));
+    posts.insertAdjacentHTML('beforeend', thread.posts.slice(start).map((post, index) => postHTML(post, start + index, thread, store.state, currentBase)).join(''));
     document.querySelector('[data-post-count]').textContent = thread.posts.length + '件の書き込み';
   }
 }

@@ -34,11 +34,11 @@
   --footer-padding-block: 6px;
   --footer-control-height: 26px;
   /* ヒントの色と明滅速度。文章は赤のみ、リンクは薄い赤の背景と輪郭を明滅させる。 */
-  --hint-color: #a7372c;
-  --hint-admin-color: #ff9a85;
-  --hint-admin-tint: #50382f;
-  --hint-text-color: #ff0000;
-  --hint-tint: #f5deda;
+  --hint-color: #a7372c; /* 明滅する操作先（data-hint="action"）の文字と輪郭 */
+  --hint-admin-color: #ff9a85; /* 管理者画面で --hint-color の代わりに使う */
+  --hint-admin-tint: #50382f; /* 管理者画面で --hint-tint の代わりに使う */
+  --hint-text-color: #ff0000; /* 赤文字の手掛かり（data-hint="text"・"oldest-date"）と地図ピンの輪郭 */
+  --hint-tint: #f5deda; /* 操作先が明滅するときの背景 */
   --hint-pulse-duration: 2.8s;
   --hint-ring-size: 3px;
   --hint-map-ring-size: 8px;
@@ -106,10 +106,10 @@ button, a { touch-action: manipulation; }
 .site-footer button:focus-visible { outline-color: var(--meta-link); }
 .site-footer .page-number { color: var(--meta-ink); line-height: 1.4; }
 .site-footer .page-number > span { color: var(--meta-muted); }
-/* data-hint は指定した手掛かりにだけ付ける。オフ時には一切装飾しない。 */
+/* data-hint は指定した手掛かりにだけ付ける。オフ時には一切装飾しない。
+   text: 赤文字のみ / action: 明滅する操作先 / oldest-date: 2018年の保存ページでだけ赤文字 */
 body[data-hints="on"] [data-hint="text"] { color: var(--hint-text-color); }
-body[data-hints="on"] [data-hint="action"] { color: var(--hint-color); }
-body[data-hints="on"] [data-hint="action"] { animation: hint-pulse var(--hint-pulse-duration) ease-in-out infinite; }
+body[data-hints="on"] [data-hint="action"] { color: var(--hint-color); animation: hint-pulse var(--hint-pulse-duration) ease-in-out infinite; }
 body[data-hints="on"][data-snapshot="oldest"] [data-hint="oldest-date"] { color: var(--hint-text-color); }
 /* ピン本体の位置・倍率は変えず、背景の周囲だけを明滅させる。 */
 body[data-hints="on"][data-snapshot="oldest"] .map-pin:not(.map-pin--sighting)::before { animation: hint-map-pulse var(--hint-pulse-duration) ease-in-out infinite; }

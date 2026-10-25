@@ -89,6 +89,8 @@ export const PROFILE = {
   ]
 };
 const post = (body, name = '名無しの市民', special = '') => ({ body, name, special });
+// ヒント使用中に赤くする部分を投稿に付ける。省略時は本文全体。表示先は community.js の HINT_THREAD_BASES で絞る。
+const hinted = (entry, hintText = entry.body) => ({ ...entry, hintText });
 export const THREADS = [
   {
     id: 'profile', title: '管理人のプロフィールなんかワロタ', date: '2026-08-28',
@@ -96,7 +98,7 @@ export const THREADS = [
     posts: [
       post('何が書かれてたのか気になるやん'),
       post('うっすら記憶あるけど、個人情報とかは無かった記憶。何で消したの？'),
-      post('よく考えたらここのパスワードが割れそうだったので', '管理人'),
+      hinted(post('よく考えたらここのパスワードが割れそうだったので', '管理人')),
       post('いや草'), post('ますます気になる')
     ]
   },
@@ -124,7 +126,7 @@ export const THREADS = [
       post('何が目的？'),
       post('実は自分の兄もエレベーター内で行方不明になっていて、情報収集したくて始めたサイトです', '管理人'),
       post('そうだったんだ'), post('身内は辛いね'),
-      { ...post('兄が消えた日が自分の誕生日だったこともあって、忘れられない事故ですね', '管理人'), hintText: '兄が消えた日が自分の誕生日だった' },
+      hinted(post('兄が消えた日が自分の誕生日だったこともあって、忘れられない事故ですね', '管理人'), '兄が消えた日が自分の誕生日だった'),
       post('他の人たちもだけど、見つかるといいよな')
     ]
   },
@@ -196,7 +198,7 @@ export const REVIVAL_THREAD = {
 export const PRIVACY_THREAD = {
   id: 'privacy', title: '管理人さんへ', dynamic: true,
   posts: [
-    { ...post('これじゃあ被害者のプライベートが筒抜け。このサイトはやっぱり閉鎖していたほうが良かった。これ以上拡散される前に消して。'), hintText: '閉鎖' },
+    hinted(post('これじゃあ被害者のプライベートが筒抜け。このサイトはやっぱり閉鎖していたほうが良かった。これ以上拡散される前に消して。'), '閉鎖'),
     post('場所が分かった途端、配信見てた人たちまで集まってきてる。'),
     post('まだ何も分かってないのに、名前とか顔とか広めるのはやめようよ。'),
     post('管理人さん、見ていますか。')

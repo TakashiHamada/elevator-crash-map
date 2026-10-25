@@ -29,13 +29,20 @@ export function articleHTML(state, compact = false) {
 export function breakingNewsHTML(state) {
   return `<div class="document-page breaking-news"><p class="section-label">最新のニュース</p><h2>市内の事故報道</h2>${articleHTML(state)}</div>`;
 }
+// ヒントを出す掲示板の範囲。スレッドID → 表示先のbase。登録した組み合わせでだけ、
+// スレッド一覧のタイトルを赤くし、投稿データの hintText を赤文字にする。
+const HINT_THREAD_BASES = {
+  profile: ['#/archive/latest'],
+  purpose: ['#/archive/latest', '#/archive/middle'],
+  privacy: ['#/live']
+};
+const isHintedThread = (thread, base) => HINT_THREAD_BASES[thread.id]?.includes(base) ?? false;
 export function threadListHTML(threads, base, state) {
   const readonlyNote = base.includes('/archive/') ? '保存された掲示板です。新しい書き込みはできません。' : '掲示板への新規書き込みは、現在受け付けていません。事故情報は「事故情報を投稿する」からお寄せください。';
   const rows = threads.map(thread => {
     const updated = thread.dynamic ? dateLabel(localDate(state.restoredAt)) + '　更新' : dateLabel(thread.date);
-    const hintTitle = (base === '#/archive/latest' && thread.id === 'profile') || (['#/archive/latest', '#/archive/middle'].includes(base) && thread.id === 'purpose') || (base === '#/live' && thread.id === 'privacy');
     return `<a class="thread-row${thread.dynamic ? ' thread-row--new' : ''}" href="${makeRoute(base, 'board', { thread: thread.id })}" data-thread-id="${thread.id}">
-      <span><span class="thread-index">${thread.dynamic ? '新' : '›'}</span><strong${hintTitle ? ' data-hint="text"' : ''}>${escapeHTML(thread.title)}</strong><small>${updated}</small></span><span class="thread-replies">${thread.posts.length}</span></a>`;
+      <span><span class="thread-index">${thread.dynamic ? '新' : '›'}</span><strong${isHintedThread(thread, base) ? ' data-hint="text"' : ''}>${escapeHTML(thread.title)}</strong><small>${updated}</small></span><span class="thread-replies">${thread.posts.length}</span></a>`;
   }).join('');
   return `<div class="board-introduction"><h2>三栖田市 市民掲示板</h2><p>エレベーターのこと、町で聞いた話など。ご自由にどうぞ。</p></div>
     <p class="board-rules">個人情報の書き込み、無断転載はおやめください。</p>
@@ -56,11 +63,10 @@ export function postHTML(post, index, thread, state, base = '') {
   const day = thread.dynamic ? localDate(state.restoredAt) : thread.date;
   // 掲示板らしく見せるための表示用ID。スレッドと投稿番号から毎回同じ値になるように作る。
   const postId = (thread.id.slice(0, 3) + (index * 139 + 42).toString(36)).padEnd(8, '0');
-  const hintBody = ['#/archive/latest', '#/archive/middle'].includes(base) || (base === '#/live' && thread.id === 'privacy');
-  const body = hintBody ? hintTextHTML(post.body, post.hintText) : escapeHTML(post.body);
+  const body = isHintedThread(thread, base) ? hintTextHTML(post.body, post.hintText) : escapeHTML(post.body);
   return `<article class="board-post" id="post-${index + 1}">
     <div class="post-meta"><span class="post-number">${index + 1}</span> ： <strong class="${post.name === '管理人' ? 'post-admin' : ''}">${escapeHTML(post.name)}</strong> <time>${escapeHTML(day.replaceAll('-', '/'))} ${postClock(thread, index, state)}</time><span class="post-id">ID:${postId}</span></div>
-    ${post.special === 'news' ? articleHTML(state, true) : `<p${base === '#/archive/latest' && thread.id === 'profile' && post.name === '管理人' ? ' data-hint="text"' : ''}>${body}</p>`}
+    ${post.special === 'news' ? articleHTML(state, true) : `<p>${body}</p>`}
   </article>`;
 }
 export function threadHTML(thread, base, state) {
