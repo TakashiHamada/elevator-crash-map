@@ -4,7 +4,7 @@ import { readFile, access } from 'node:fs/promises';
 import { CONFIG, NEWS, NEWS_BODY, THREADS, ADMIN_MEMO, FLOOD_THREAD } from '../board-data.js';
 import { ACCIDENTS, BUILDINGS, TARGET_BUILDING, TARGET_BUILDING_ID, addressOf, recordsForSnapshot } from '../data.js';
 import { createState, isValidState, localDate, dateShift, snapshotDates, newsIsVisible, normalizeText, isCorrectPassword, matchesArchiveQuery, validateReport, transition, viewerCount, visibleThreads, parseRoute, resolveRoute, createStore } from '../game-state.js';
-import { profileHTML, threadHTML, mapHTML, reportHTML, escapeHTML, updatesHTML, postingHelpHTML } from '../community.js';
+import { profileHTML, threadListHTML, threadHTML, mapHTML, reportHTML, escapeHTML, updatesHTML, postingHelpHTML } from '../community.js';
 import { mapRecords, mapSVG, buildingDetailHTML } from '../map.js';
 
 const startedAt = Date.parse('2026-10-23T00:15:00+09:00');
@@ -55,7 +55,7 @@ test('数字21と生年月日の組み合わせでだけログインできる', 
   for (const value of ['2119921128', '1992112721', '２１１９９２１１２７', 'kanrinin', '']) assert.equal(isCorrectPassword(value), false);
 });
 test('プロフィールの手掛かりは中間保存にだけ残る', () => {
-  assert.match(profileHTML('middle'), /1992年生まれ/u);
+  assert.match(profileHTML('middle'), /<span data-hint="text">1992<\/span>年生まれ/u);
   assert.match(profileHTML('middle'), /ラスベガスをぶっつぶせ/u);
   assert.doesNotMatch(profileHTML('latest'), /1992年生まれ|ラスベガスをぶっつぶせ/u);
   assert.match(profileHTML('latest'), /セキュリティに関わる情報/u);
@@ -127,6 +127,10 @@ test('現場公開後にだけ閉鎖要請と配信スレッドが現れ、書�
   assert.equal(visibleThreads('live', restored(), publishedAt).some(item => item.id === 'privacy'), false);
   const initial = visibleThreads('live', published(), publishedAt);
   assert.ok(initial.some(item => item.id === 'privacy'));
+  assert.match(threadListHTML(initial, '#/live', published()), /<strong data-hint="text">管理人さんへ<\/strong>/u);
+  const privacy = threadHTML(initial.find(item => item.id === 'privacy'), '#/live', published());
+  assert.match(privacy, /このサイトはやっぱり<span data-hint="text">閉鎖<\/span>していたほうが良かった。/u);
+  assert.equal((privacy.match(/data-hint="text"/gu) ?? []).length, 1, '本文では閉鎖の2文字だけを強調する');
   assert.equal(initial.find(item => item.id === FLOOD_THREAD.id).posts.length, CONFIG.floodInitialPosts);
   const later = visibleThreads('live', published(), publishedAt + CONFIG.floodPostInterval);
   assert.equal(later.find(item => item.id === FLOOD_THREAD.id).posts.length, CONFIG.floodInitialPosts + 1);

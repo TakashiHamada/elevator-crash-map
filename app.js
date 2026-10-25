@@ -19,6 +19,13 @@ try { authenticated = sessionStorage.getItem(CONFIG.sessionKey) === 'yes'; } cat
 // 魚拓の検索語。魚拓に戻るたびにサイト名を入れ直さなくてよいよう、最後の検索を覚えておく。
 let lastArchiveQuery = '';
 try { lastArchiveQuery = storage?.getItem(CONFIG.archiveQueryKey) ?? ''; } catch { /* 保存を使えない場合はタブ内で覚えます。 */ }
+// ヒント表示のオン・オフ。ゲーム進行とは別に保存し、body[data-hints] で style.css の強調を切り替える。
+let hintsEnabled = false;
+try { hintsEnabled = storage?.getItem(CONFIG.hintsKey) === 'on'; } catch { /* タブ内で切り替えます。 */ }
+// 「ヒントを使いますか？」の確認中だけ true。別のダイアログの操作でヒントを確定させない。
+let hintConfirmationOpen = false;
+// 管理者が復元を確定した直後の画面だけ、長めの組み立て演出を使う。
+let restoreEntrancePending = false;
 // 公開サイト（保存世代・現行サイト）を表示中の状態。render() → publicHTML() が毎回設定する。
 let currentRoute, currentBase, currentSnapshot, currentView, mapInstance;
 let lastNewsVisible = false, renderedPhase = '', currentKey = '';
@@ -43,8 +50,11 @@ function navigate(hash, replace = false) {
   if (replace || location.hash === hash) { history.replaceState(null, '', hash); render(); }
   else location.hash = hash;
 }
-function modal(html) {
+// context が game のダイアログは、フッターと同じゲーム外の配色を使う。
+function modal(html, context = 'story') {
   if (dialog.open) dialog.close();
+  hintConfirmationOpen = false;
+  dialog.dataset.context = context;
   dialogContent.innerHTML = html;
   dialog.showModal();
   dialog.scrollTop = 0;
@@ -54,7 +64,7 @@ function login() {
   modal(`<p class="modal-eyebrow">${escapeHTML(CONFIG.name)}</p><h2 id="modal-title">管理者ログイン</h2>
     <form id="login-form" class="login-form" novalidate><label for="admin-password">パスワード</label>
     <input id="admin-password" name="password" type="password" inputmode="numeric" pattern="[0-9]{${digits}}" maxlength="${digits}" autocomplete="off" required placeholder="${escapeHTML(CONFIG.passwordPlaceholder)}" aria-describedby="password-hint login-error">
-    <p class="password-hint" id="password-hint">${escapeHTML(CONFIG.passwordHint)}</p><p id="login-error" class="form-status" role="alert"></p>
+    <p class="password-hint" id="password-hint" data-hint="text">${escapeHTML(CONFIG.passwordHint)}</p><p id="login-error" class="form-status" role="alert"></p>
     <button class="button button--primary" type="submit">ログイン</button></form>`);
   document.querySelector('#admin-password').focus();
 }
@@ -63,19 +73,31 @@ function pageNumberHTML(page) {
 }
 function headerHTML(base = '#/closed', archived = false) {
   return `<header class="site-header"><a class="site-brand" href="${base}" aria-label="三栖田えれ ベータ ホーム">三栖田えれ<span>(β)</span></a>
-    <button class="admin-link" type="button" data-action="login" ${archived ? 'disabled' : ''}><svg viewBox="0 0 16 18" width="12" height="14" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2M2 7h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>${authenticated && !archived ? '管理者画面' : '管理者ログイン'}</button></header>`;
+    <button class="admin-link" type="button" data-action="login" ${currentRoute?.type === 'closed' ? 'data-hint="action"' : ''} ${archived ? 'disabled' : ''}><svg viewBox="0 0 16 18" width="12" height="14" aria-hidden="true"><path d="M4 7V5a4 4 0 0 1 8 0v2M2 7h12v9H2z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>${authenticated && !archived ? '管理者画面' : '管理者ログイン'}</button></header>`;
 }
 // 全8ページ共通のフッター。ゲームの外側（メタ情報）だけを載せ、物語内のリンクは各ページの本文側に置く。
 function footerHTML(page) {
-  return `<footer class="site-footer"><button class="footer-about" type="button" data-action="about">このページについて</button>${pageNumberHTML(page)}</footer>`;
+  return `<footer class="site-footer"><button class="footer-about" type="button" data-action="about">このページについて</button><button class="footer-hints" type="button" data-action="toggle-hints" aria-pressed="${hintsEnabled}">${hintToggleLabel(hintsEnabled)}</button>${pageNumberHTML(page)}</footer>`;
+}
+const hintToggleLabel = enabled => enabled ? 'ヒントをオフにする' : 'ヒントを使う';
+function setHintsEnabled(enabled) {
+  hintsEnabled = enabled;
+  try { storage?.setItem(CONFIG.hintsKey, enabled ? 'on' : 'off'); } catch { /* 保存を使えない場合も切り替えます。 */ }
+  // 地図の位置やフォーカスを保ち、画面全体を描き直さずに強調を切り替える。
+  document.body.dataset.hints = enabled ? 'on' : 'off';
+  const button = document.querySelector('[data-action="toggle-hints"]');
+  if (button) {
+    button.textContent = hintToggleLabel(enabled);
+    button.setAttribute('aria-pressed', String(enabled));
+  }
 }
 function viewersHTML(number) {
   return `<div class="viewer-display${store.state.phase === 'published' && isLive() ? ' viewer-display--busy' : ''}"><span class="viewer-dot" aria-hidden="true"></span>現在 <strong data-viewers>${number}</strong> 人が閲覧中</div>`;
 }
 function closureHTML() {
   return `<div class="site-shell closure-shell">${headerHTML()}<main class="closure-main"><div class="closure-viewers">${viewersHTML(closedViewers)}</div>
-    <div class="closure-notice"><p class="closure-caption">お知らせ</p><h1>当サイト「三栖田えれ」は<br>都合により閉鎖いたしました。</h1><p>長らくのご利用ありがとうございました。</p><div class="closure-signature">${escapeHTML(CONFIG.name)} 管理人</div></div>
-    <p class="closure-archive"><span>お困りですか？ 提携システム：</span><a href="#/archive">WEBアーカイブを利用する</a></p>
+    <div class="closure-notice"><p class="closure-caption">お知らせ</p><h1>当サイト「<span data-hint="text">三栖田えれ</span>」は<br>都合により閉鎖いたしました。</h1><p>長らくのご利用ありがとうございました。</p><div class="closure-signature"><span data-hint="text">${escapeHTML(CONFIG.name)}</span> 管理人</div></div>
+    <p class="closure-archive"><span>お困りですか？ 提携システム：</span><a href="#/archive" data-hint="action">WEBアーカイブを利用する</a></p>
     </main>${footerHTML(PAGE_NUMBERS.closed)}</div>`;
 }
 function archiveResultItemHTML({ key, label }, date) {
@@ -101,12 +123,12 @@ function archiveHTML(query = '') {
 }
 function liveNoticeHTML(now) {
   if (!isLive() || !newsIsVisible(store.state, now)) return '';
-  return `<a class="new-post-notice" href="#/live?view=board"><span class="new-post-label">新着</span>市民掲示板に新しい書き込みがあります。<span aria-hidden="true">→</span></a>`;
+  return `<a class="new-post-notice" href="#/live?view=board" data-hint="action"><span class="new-post-label">新着</span>市民掲示板に新しい書き込みがあります。<span aria-hidden="true">→</span></a>`;
 }
 function sidebarHTML(threads, recordCount, archived = false) {
   const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース検索'], ['updates', '更新履歴'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
-  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
+  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentSnapshot === 'middle' && key === 'profile' ? 'data-hint="action"' : ''} ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
     <div class="sidebar-note"><h2>情報をお寄せください</h2><p>市内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report" ${archived ? 'disabled' : ''}>事故情報を投稿する</button></div>
     </aside>`;
 }
@@ -151,7 +173,7 @@ function adminConfirmHTML(title, message, confirmAction, confirmLabel, confirmCl
 }
 // 管理者画面下部の操作。閉鎖中は「復元」、現場掲載後は「再閉鎖」（クリア条件）、その間は公開中の案内。
 function adminOperationHTML(phase) {
-  if (phase === 'closed') return '<p>保存されている内容を使って、サイトの公開を再開します。</p><button class="admin-operation-button" type="button" data-action="restore">サイトを復元</button>';
+  if (phase === 'closed') return '<p>保存されている内容を使って、サイトの公開を再開します。</p><button class="admin-operation-button" type="button" data-action="restore" data-hint="action">サイトを復元</button>';
   if (phase === 'published') return '<p>サイトを閉鎖すると、公開中の地図と掲示板は閲覧できなくなります。</p><button class="admin-operation-button admin-operation-button--close" type="button" data-action="close-site">サイトを閉鎖</button>';
   return '<p class="admin-public-message"><span aria-hidden="true">●</span> サイトを公開しています。</p><a href="#/live">公開中のサイトを開く →</a>';
 }
@@ -183,15 +205,35 @@ function endingHTML() {
 function stopClosingTransition() {
   closingTimers.forEach(clearTimeout); closingTimers = [];
   app.inert = false;
+  document.body.dataset.closing = '';
 }
-// サイト閉鎖後、1ページ目の閉鎖のお知らせを closingNoticeHold だけ見せ、closingFadeDuration かけて暗転してから8ページ目へ進む。
+// 管理者画面を下から解体した後、閉鎖のお知らせ→暗転→8ページ目へ進む。
 // 進行は呼び出し前に complete として保存済みなので、途中で再読み込みしても8ページ目から再開できる。
 function playClosingTransition() {
   stopClosingTransition();
+  document.body.dataset.pageEnter = 'off';
   mapInstance?.destroy(); mapInstance = null;
   if (dialog.open) dialog.close();
-  app.innerHTML = closureHTML() + '<div class="closing-curtain" aria-hidden="true"></div>';
   app.inert = true;
+  // 確認ダイアログの確定ボタンも同じクラスを持つため、#app 内の操作ボタンに限定する。
+  const button = app.querySelector('.admin-operation-button--close');
+  button.textContent = '公開を停止しています…';
+  button.disabled = true;
+  announcer.textContent = '公開を停止しています。';
+  // 長いメモの末尾から操作しても、今見えている範囲が下から消えるようにする。
+  app.style.setProperty('--shutdown-top', window.scrollY + 'px');
+  app.style.setProperty('--shutdown-bottom', (window.scrollY + window.innerHeight) + 'px');
+  app.style.setProperty('--shutdown-duration', CONFIG.closingDisassembleDuration + 'ms');
+  // サイト名はスクロール位置によらず最後まで残す。
+  app.insertAdjacentHTML('beforeend', `<div class="shutdown-brand" aria-hidden="true">${escapeHTML(CONFIG.name)}</div>`);
+  document.body.dataset.closing = 'dismantle';
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if (reducedMotion) showClosingNotice();
+  else closingTimers.push(setTimeout(showClosingNotice, CONFIG.closingDisassembleDuration));
+}
+function showClosingNotice() {
+  document.body.dataset.closing = '';
+  app.innerHTML = closureHTML() + '<div class="closing-curtain" aria-hidden="true"></div>';
   document.body.dataset.screen = 'closed';
   document.title = '閉鎖のお知らせ | ' + CONFIG.name;
   document.querySelector('meta[name="theme-color"]').content = '#f5f4ee';
@@ -205,6 +247,7 @@ function playClosingTransition() {
 }
 function render(options = {}) {
   stopClosingTransition();
+  const previousKey = currentKey;
   const previousScroll = window.scrollY;
   if (currentKey) scrollPositions.set(currentKey, previousScroll);
   mapInstance?.destroy(); mapInstance = null;
@@ -213,9 +256,15 @@ function render(options = {}) {
   const resolved = resolveRoute(requested, store.state, authenticated, lastArchiveQuery);
   if (resolved.redirect) { history.replaceState(null, '', resolved.redirect); requested = parseRoute(resolved.redirect); }
   currentRoute = requested; currentKey = location.hash;
+  // 初回表示と画面移動だけで組み立て演出を再生。進行同期などの描き直しでは繰り返さない。
+  document.body.dataset.pageEnter = !options.preserveScroll && currentKey !== previousKey ? 'on' : 'off';
+  document.body.dataset.pageRender = restoreEntrancePending && currentRoute.type === 'live' ? 'restore' : 'normal';
+  restoreEntrancePending = false;
   currentBase = ''; currentSnapshot = ''; currentView = '';
   const now = Date.now();
   document.body.dataset.screen = currentRoute.type;
+  document.body.dataset.snapshot = currentRoute.type === 'snapshot' ? currentRoute.snapshot : '';
+  document.body.dataset.hints = hintsEnabled ? 'on' : 'off';
   let publicView;
   if (currentRoute.type === 'closed') app.innerHTML = closureHTML();
   if (currentRoute.type === 'archive') {
@@ -270,6 +319,8 @@ function refreshViewerCount(now) {
 }
 function revealNewsArrival(threads, now) {
   lastNewsVisible = true;
+  // 差し替えた部品が .content-panel > * に一致しても、組み立て演出を再生しない。
+  document.body.dataset.pageEnter = 'off';
   document.querySelector('#live-notice').innerHTML = liveNoticeHTML(now);
   document.querySelector('[data-board-count]').textContent = threads.length;
   if (currentView === 'board' && !currentRoute.params.has('thread')) document.querySelector('#content-panel').innerHTML = threadListHTML(threads, currentBase, store.state);
@@ -283,7 +334,7 @@ function appendFloodPosts(threads) {
   const posts = document.querySelector(`[data-thread-posts="${FLOOD_THREAD.id}"]`);
   if (posts && posts.children.length < thread.posts.length) {
     const start = posts.children.length;
-    posts.insertAdjacentHTML('beforeend', thread.posts.slice(start).map((post, index) => postHTML(post, start + index, thread, store.state)).join(''));
+    posts.insertAdjacentHTML('beforeend', thread.posts.slice(start).map((post, index) => postHTML(post, start + index, thread, store.state, currentBase)).join(''));
     document.querySelector('[data-post-count]').textContent = thread.posts.length + '件の書き込み';
   }
 }
@@ -304,7 +355,18 @@ document.addEventListener('click', async event => {
   if (action === 'login') { authenticated ? navigate('#/admin') : login(); return; }
   if (action === 'logout') { setAuthentication(false); navigate(siteEntryHash(store.state)); return; }
   if (action === 'about') {
-    modal('<h2 id="modal-title">このページについて</h2>' + ABOUT_PARAGRAPHS.map(text => `<p>${escapeHTML(text)}</p>`).join(''));
+    modal('<h2 id="modal-title">このページについて</h2>' + ABOUT_PARAGRAPHS.map(text => `<p>${escapeHTML(text)}</p>`).join(''), 'game');
+    return;
+  }
+  if (action === 'toggle-hints') {
+    if (hintsEnabled) { setHintsEnabled(false); announcer.textContent = 'ヒントをオフにしました。'; return; }
+    modal('<h2 id="modal-title">ヒントを使いますか？</h2><p>次に進む手掛かりや、注目したい場所を赤く強調します。ヒントはいつでもオフにできます。</p><div class="modal-actions"><button class="button" type="button" data-action="dismiss">いいえ</button><button class="button button--primary" type="button" data-action="confirm-hints">はい</button></div>', 'game');
+    hintConfirmationOpen = true;
+    return;
+  }
+  if (action === 'confirm-hints' && dialog.open && hintConfirmationOpen) {
+    hintConfirmationOpen = false;
+    setHintsEnabled(true); dialog.close(); announcer.textContent = 'ヒントをオンにしました。';
     return;
   }
   if (action === 'report') { openReport(); return; }
@@ -313,7 +375,9 @@ document.addEventListener('click', async event => {
     return;
   }
   if (action === 'confirm-restore' && dialog.open && canOperateAdmin('closed')) {
-    store.dispatch({ type: 'restore' }); dialog.close(); navigate('#/live'); return;
+    store.dispatch({ type: 'restore' });
+    restoreEntrancePending = true;
+    dialog.close(); navigate('#/live'); return;
   }
   if (action === 'close-site' && canOperateAdmin('published')) {
     modal(adminConfirmHTML('サイトを閉鎖しますか？', '公開中の地図と掲示板は閲覧できなくなります。', 'confirm-close-site', 'サイトを閉鎖', 'admin-operation-button--close'));
@@ -323,11 +387,11 @@ document.addEventListener('click', async event => {
     store.dispatch({ type: 'close' }); playClosingTransition(); return;
   }
   if (action === 'replay') {
-    modal('<h2 id="modal-title">最初から遊びますか？</h2><p>このブラウザーの進行を消して、閉鎖のお知らせからもう一度始めます。</p><div class="modal-actions"><button class="button" data-action="dismiss">戻る</button><button class="button button--primary" data-action="confirm-replay">最初から遊ぶ</button></div>');
+    modal('<h2 id="modal-title">最初から遊びますか？</h2><p>このブラウザーの進行を消して、閉鎖のお知らせからもう一度始めます。</p><div class="modal-actions"><button class="button" data-action="dismiss">戻る</button><button class="button button--primary" data-action="confirm-replay">最初から遊ぶ</button></div>', 'game');
     return;
   }
   if (action === 'confirm-replay' && currentRoute.type === 'ending') {
-    store.reset(); setAuthentication(false); rememberArchiveQuery(''); scrollPositions.clear(); navigate('#/closed'); return;
+    store.reset(); setAuthentication(false); rememberArchiveQuery(''); setHintsEnabled(false); scrollPositions.clear(); navigate('#/closed'); return;
   }
   if (action === 'copy-news') {
     const result = button.closest('.article-bottom').querySelector('.copy-result');
