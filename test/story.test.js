@@ -54,16 +54,33 @@ test('数字21と生年月日の組み合わせでだけログインできる', 
   assert.equal(isCorrectPassword('2119921127'), true);
   for (const value of ['2119921128', '1992112721', '２１１９９２１１２７', 'kanrinin', '']) assert.equal(isCorrectPassword(value), false);
 });
-test('プロフィールの手掛かりは中間保存にだけ残る', () => {
-  assert.match(profileHTML('middle'), /<span data-hint="text">1992<\/span>年生まれ/u);
-  assert.match(profileHTML('middle'), /ラスベガスをぶっつぶせ/u);
-  assert.doesNotMatch(profileHTML('latest'), /1992年生まれ|ラスベガスをぶっつぶせ/u);
-  assert.match(profileHTML('latest'), /セキュリティに関わる情報/u);
-  assert.doesNotMatch(profileHTML('oldest'), /1992年生まれ|30代/u);
+test('プロフィールの6項目と手掛かりは中間・最古の保存に共通で残る', () => {
+  for (const snapshot of ['middle', 'oldest']) {
+    const html = profileHTML(snapshot);
+    assert.equal((html.match(/<dt>/gu) ?? []).length, 6);
+    assert.match(html, /<span data-hint="text">1992<\/span>年生まれ/u);
+    assert.match(html, /『<span data-hint="text">ラスベガスをぶっつぶせ<\/span>』/u);
+    assert.match(html, /行方不明になった<span data-hint="text">人の魂<\/span>もこの世から消えるのか、、/u);
+    assert.doesNotMatch(html, /<a\b|google\.com/u);
+  }
+  for (const snapshot of ['latest', 'live']) {
+    assert.doesNotMatch(profileHTML(snapshot), /1992|ラスベガスをぶっつぶせ/u);
+    assert.match(profileHTML(snapshot), /セキュリティに関わる情報/u);
+  }
+  assert.doesNotMatch(profileHTML('oldest'), /30代/u);
 });
 test('脚本の誕生日・音・撮影・都市伝説の投稿と管理人メモが揃っている', () => {
   const all = THREADS.flatMap(item => item.posts.map(post => post.body)).join('\n');
   for (const clue of ['兄が消えた日が自分の誕生日', 'スマホで録音したけど無音', 'JKです', 'デスゲーム', 'パスワードが割れそう']) assert.ok(all.includes(clue), clue);
+  const resetThread = THREADS.find(thread => thread.id === 'reset');
+  assert.equal(resetThread.posts.length, 7);
+  assert.equal(resetThread.posts[6].name, '名無しの市民');
+  assert.equal(resetThread.posts[6].body, '実際に見た人は戻って来ないんだろ');
+  for (const snapshot of ['middle', 'latest', 'live']) {
+    const html = threadHTML(resetThread, snapshot === 'live' ? '#/live' : '#/archive/' + snapshot, closed());
+    assert.match(html, /7件の書き込み/u);
+    assert.match(html, /id="post-7"/u);
+  }
   const memo = ADMIN_MEMO.map(paragraph => paragraph.text).join('\n');
   assert.match(memo, /被害者を救っているんじゃないか/u);
   assert.match(memo, /隣り合った建物が無くて/u);
@@ -286,6 +303,13 @@ test('施設詳細のHTMLはデータ由来の文字列をエスケープし、�
   assert.match(withRecord, /事故後撤去/u);
   assert.ok(withRecord.includes('&lt;script&gt;'));
   assert.ok(withRecord.includes(record.id));
+  const withDatedComment = buildingDetailHTML(place, { ...record, comments: [{
+    date: '2026-10-23', title: '<img>', body: '<script>', location: 'A & B', source: '<b>市民</b>'
+  }] });
+  assert.match(withDatedComment, /&lt;img&gt;/u);
+  assert.match(withDatedComment, /&lt;script&gt;/u);
+  assert.match(withDatedComment, /A &amp; B/u);
+  assert.match(withDatedComment, /&lt;b&gt;市民&lt;\/b&gt;/u);
 });
 test('全ESモジュールのローカルimport先・HTMLの配信ファイルが存在する', async () => {
   for (const file of ['app.js', 'community.js', 'game-state.js', 'map.js', 'map-layout.js', 'data.js', 'board-data.js']) {

@@ -1,4 +1,4 @@
-// 生成地図画像の上にラベル・事故ピン・目撃ピンを重ね、ドラッグ・ピンチ・ホイール・キーでの移動と拡大縮小を扱う。
+// 生成地図画像の上にラベル・事故ピンを重ね、ドラッグ・ピンチ・ホイール・キーでの移動と拡大縮小を扱う。
 // 座標はすべて画像のピクセル座標（map-layout.js）。調整値は data.js の MAP_CONFIG にある。
 import { MAP_CONFIG, BUILDINGS, TOWN_LABELS, TARGET_BUILDING_ID, getBuilding, addressOf } from './data.js';
 import { NEWS, NEWS_BODY, REPORTED_ACCIDENT } from './board-data.js';
@@ -41,9 +41,6 @@ export function mapSVG() {
     </g>`).join('')}</g>
   </svg>`;
 }
-export function sightingPinsHTML(sightings) {
-  return sightings.map(item => `<button type="button" class="map-pin map-pin--sighting" style="left:${item.x}px;top:${item.y}px" data-sighting-id="${item.id}" aria-label="目撃情報：${escapeHTML(item.title)}" aria-controls="map-detail" aria-expanded="false"><span>目</span></button>`).join('');
-}
 function accidentPinsHTML(plottedRecords) {
   return plottedRecords.map(record => {
     const place = getBuilding(record.buildingId);
@@ -51,17 +48,6 @@ function accidentPinsHTML(plottedRecords) {
   }).join('');
 }
 
-export function sightingDetailHTML(item) {
-  const place = getBuilding(item.buildingId);
-  return `<button class="detail-close" type="button" data-map-action="close" aria-label="目撃情報を閉じる">×</button>
-    <p class="detail-kicker detail-kicker--sighting">目撃・証言／${item.id}</p>
-    <h3 id="detail-title">${escapeHTML(item.title)}</h3>
-    <p class="detail-address">${escapeHTML(item.location)}</p>
-    <dl class="detail-facts"><div><dt>目撃日</dt><dd>${dateLabel(item.date)}</dd></div><div><dt>情報源</dt><dd>${escapeHTML(item.source)}</dd></div></dl>
-    <p class="detail-body">${escapeHTML(item.body)}</p>
-    <p class="sighting-note">寄せられた証言を記録したものです。内容のすべてが確認されているわけではありません。</p>
-    <h4>付近の施設</h4><button type="button" class="text-link" data-building-id="${place.id}">${escapeHTML(place.name)}の施設情報 →</button><p class="detail-address">${escapeHTML(addressOf(place))}</p>`;
-}
 // 発生日の月日だけを囲む。赤くなるのは2018年の保存ページでヒントを使っているときだけ（style.css）。
 function incidentDateHTML(date) {
   const label = dateLabel(date);
@@ -76,7 +62,11 @@ export function buildingDetailHTML(place, record) {
     ? `<p class="incident-type">${escapeHTML(record.type)}</p><dl class="detail-facts"><div><dt>発生日</dt><dd>${incidentDateHTML(record.date)}</dd></div><div><dt>出典</dt><dd>${escapeHTML(record.source)}</dd></div></dl><p class="detail-body">${escapeHTML(record.body)}</p>`
     : '<p class="no-record">この施設の事故情報は登録されていません。</p>';
   const commentsHTML = record
-    ? `<section class="record-comments"><h4>口コミ <span>${record.comments.length}件</span></h4>${record.comments.map((comment, index) => `<div><small>${index + 1}：名無しの市民</small><p>${escapeHTML(comment)}</p></div>`).join('')}<p class="comments-readonly">口コミの投稿は受け付けていません。</p></section>`
+    ? `<section class="record-comments"><h4>口コミ <span>${record.comments.length}件</span></h4>${record.comments.map((comment, index) => {
+      const entry = typeof comment === 'string' ? { body: comment } : comment;
+      const metadata = entry.date ? `／${escapeHTML(dateLabel(entry.date))}／${escapeHTML(entry.source)}` : '';
+      return `<div><small>${index + 1}：名無しの市民${metadata}</small>${entry.title ? `<p><strong>${escapeHTML(entry.title)}</strong></p>` : ''}<p>${escapeHTML(entry.body)}</p>${entry.location ? `<p class="comment-location">場所：${escapeHTML(entry.location)}</p>` : ''}</div>`;
+    }).join('')}<p class="comments-readonly">口コミの投稿は受け付けていません。</p></section>`
     : '';
   return `<button class="detail-close" type="button" data-map-action="close" aria-label="施設情報を閉じる">×</button>
       <p class="detail-kicker">${record ? '事故記録／' + escapeHTML(record.id) : '施設情報'}</p><h3 id="detail-title">${escapeHTML(place.name)}</h3>
@@ -105,9 +95,9 @@ export function mapRecords(records, state, published = false) {
 }
 /**
  * stage（#map-stage）に地図を組み立て、操作を受け付ける。戻り値の destroy() で全リスナーを外す。
- * plottedRecords は mapRecords() の結果。onSelect(buildingId, sightingId) は選択が変わるたびに呼ばれる（URL同期用）。
+ * plottedRecords は mapRecords() の結果。onSelect(buildingId) は選択が変わるたびに呼ばれる（URL同期用）。
  */
-export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
+export function mountMap(stage, { plottedRecords, onSelect }) {
   const config = MAP_CONFIG;
   const world = stage.querySelector('#map-world');
   const panel = stage.querySelector('#map-detail');
@@ -120,12 +110,12 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   // offsetX/Y: 画像左上の画面上の位置。画面上の倍率は displayScale() = fitScale × userZoom。
   let userZoom = 1, fitScale = 1, offsetX = 0, offsetY = 0, stageWidth = 0, stageHeight = 0, selectedId = null;
   let appliedScale = null;
-  // 選択中の建物（目撃は地点のみ）を囲む範囲。詳細パネルの左右判定に使う（画像ピクセル座標）。
+  // 選択中の建物を囲む範囲。詳細パネルの左右判定に使う（画像ピクセル座標）。
   let selectedBounds = null;
   const pointers = new Map();
   let previousPinchDistance = null, lastFocus = null;
   let suppressMapClick = false;
-  world.innerHTML = mapSVG() + accidentPinsHTML(plottedRecords) + sightingPinsHTML(sightings);
+  world.innerHTML = mapSVG() + accidentPinsHTML(plottedRecords);
   world.style.width = config.width + 'px';
   world.style.height = config.height + 'px';
 
@@ -175,9 +165,9 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     offsetX = atX - (atX - offsetX) * ratio; offsetY = atY - (atY - offsetY) * ratio;
     userZoom = value; applyView();
   }
-  function markSelected({ buildingId = null, sightingId = null }) {
+  function markSelected({ buildingId = null }) {
     world.querySelectorAll('[aria-expanded]').forEach(marker => marker.setAttribute('aria-expanded', String(
-      (buildingId !== null && marker.dataset.buildingId === buildingId) || (sightingId !== null && marker.dataset.sightingId === sightingId))));
+      buildingId !== null && marker.dataset.buildingId === buildingId)));
     world.querySelector('.map-building.is-selected')?.classList.remove('is-selected');
     if (buildingId) world.querySelector('.map-building[data-building-id="' + buildingId + '"]')?.classList.add('is-selected');
   }
@@ -213,8 +203,8 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   }
   // 詳細パネルを開き、focus 指定時は選択地点がパネルに隠れない位置まで寄せる。
   function revealPanelAt(point, focus) {
-    // 建物は外周、目撃は地点そのものを、パネルと重ねない範囲にする。
-    selectedBounds = outlineBounds(point.outline ?? [[point.x, point.y]]);
+    // 建物の外周を、パネルと重ねない範囲にする。
+    selectedBounds = outlineBounds(point.outline);
     panel.hidden = false; panel.scrollTop = 0;
     if (!focus) { updatePanelPlacement(); return; }
     lastFocus = document.activeElement;
@@ -224,15 +214,6 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     offsetY = stageHeight * config.focusY - point.y * displayScale();
     applyView();
     panel.querySelector('button').focus({ preventScroll: true });
-  }
-  function selectSighting(id, focus = true) {
-    const item = sightings.find(entry => entry.id === id);
-    if (!item) return;
-    selectedId = id;
-    markSelected({ sightingId: id });
-    panel.innerHTML = sightingDetailHTML(item);
-    revealPanelAt(item, focus);
-    onSelect?.(null, id);
   }
   function selectBuilding(id, focus = true) {
     const place = getBuilding(id);
@@ -250,15 +231,13 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
     if (layerButton) {
       if (layerButton.disabled) return;
       const layer = layerButton.dataset.mapLayer;
-      if (['accidents', 'sightings'].includes(layer)) {
+      if (layer === 'accidents') {
         const visible = layerButton.getAttribute('aria-pressed') !== 'true';
         layerButton.setAttribute('aria-pressed', String(visible));
         stage.dataset[layer + 'Hidden'] = String(!visible);
       }
       return;
     }
-    const sighting = event.target.closest('[data-sighting-id]');
-    if (sighting) { selectSighting(sighting.dataset.sightingId); return; }
     const action = event.target.closest('[data-map-action]')?.dataset.mapAction;
     if (action === 'in') setZoom(userZoom * config.zoomStep);
     if (action === 'out') setZoom(userZoom / config.zoomStep);
@@ -330,7 +309,6 @@ export function mountMap(stage, { plottedRecords, onSelect, sightings = [] }) {
   resize();
   return {
     selectBuilding,
-    selectSighting,
     destroy() { controller.abort(); observer.disconnect(); }
   };
 }

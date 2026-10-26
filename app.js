@@ -1,7 +1,7 @@
 // 画面の組み立てと操作。ハッシュルート（#/closed, #/archive, #/archive/<世代>, #/admin, #/live, #/ending）ごとに
 // #app を描き直す。進行の判定は game-state.js、公開サイトの部品は community.js、地図は map.js に任せる。
 import { CONFIG, ADMIN_MEMO, NEWS_BODY, SNAPSHOTS, ABOUT_PARAGRAPHS, ENDING, FLOOD_THREAD } from './board-data.js';
-import { ACCIDENTS, recordsForSnapshot, sightingsForSnapshot, TARGET_BUILDING_ID } from './data.js';
+import { ACCIDENTS, recordsForSnapshot, TARGET_BUILDING_ID } from './data.js';
 import { createStore, parseRoute, resolveRoute, siteEntryHash, snapshotDates, matchesArchiveQuery, isCorrectPassword, newsIsVisible, viewerCount, visibleThreads, validateReport, localDate } from './game-state.js';
 import { escapeHTML, dateLabel, makeRoute, breakingNewsHTML, threadListHTML, threadHTML, postHTML, profileHTML, reportHTML, mapHTML, postingHelpHTML, updatesHTML, newsIndexHTML } from './community.js';
 import { mountMap, mapRecords } from './map.js';
@@ -126,13 +126,13 @@ function liveNoticeHTML(now) {
   return `<a class="new-post-notice" href="#/live?view=board" data-hint="action"><span class="new-post-label">新着</span>市民掲示板に新しい書き込みがあります。<span aria-hidden="true">→</span></a>`;
 }
 function sidebarHTML(threads, recordCount, archived = false) {
-  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', 'ニュース検索'], ['updates', '更新履歴'], ['board', '市民掲示板'], ['profile', '管理人について']];
+  const links = [['map', '事故マップ'], ['post', '投稿方法'], ['news', '事故一覧'], ['updates', '更新履歴'], ['board', '市民掲示板'], ['profile', '管理人について']];
   const badge = key => key === 'map' ? `<small>${recordCount}</small>` : key === 'board' ? `<small data-board-count>${threads.length}</small>` : '';
-  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentSnapshot === 'middle' && key === 'profile' ? 'data-hint="action"' : ''} ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}<a href="#/archive"><span>WEBアーカイブ</span></a></nav>
+  return `<aside class="site-sidebar"><nav class="section-nav" aria-label="サイトメニュー">${links.map(([key, label]) => `<a href="${makeRoute(currentBase, key)}" ${currentSnapshot === 'middle' && key === 'profile' ? 'data-hint="action"' : ''} ${currentView === key ? 'aria-current="page"' : ''}><span>${label}</span>${badge(key)}</a>`).join('')}</nav>
     <div class="sidebar-note"><h2>情報をお寄せください</h2><p>市内で起きたエレベーター事故を記録しています。小さな情報でも、ご協力をお願いします。</p><button class="button button--primary" type="button" data-action="report" ${archived ? 'disabled' : ''}>事故情報を投稿する</button></div>
     </aside>`;
 }
-function contentHTML(records, plottedRecords, threads, sightings, now) {
+function contentHTML(records, plottedRecords, threads, now) {
   const archived = currentRoute.type === 'snapshot';
   if (currentView === 'post') return postingHelpHTML(archived);
   if (currentView === 'profile') return `<div class="document-page">${profileHTML(currentSnapshot)}</div>`;
@@ -142,7 +142,7 @@ function contentHTML(records, plottedRecords, threads, sightings, now) {
     const thread = threads.find(item => item.id === currentRoute.params.get('thread'));
     return thread ? threadHTML(thread, currentBase, store.state) : threadListHTML(threads, currentBase, store.state);
   }
-  return mapHTML(plottedRecords, sightings, archived);
+  return mapHTML(plottedRecords);
 }
 function publicHTML(now) {
   const archived = currentRoute.type === 'snapshot';
@@ -153,15 +153,14 @@ function publicHTML(now) {
   const records = archived ? recordsForSnapshot(currentSnapshot, dates) : ACCIDENTS;
   const plottedRecords = mapRecords(records, store.state, !archived && store.state.phase === 'published');
   const threads = visibleThreads(currentSnapshot, store.state, now);
-  const sightings = sightingsForSnapshot(currentSnapshot, dates);
   const page = archived ? SNAPSHOTS.find(snapshot => snapshot.key === currentSnapshot).page : PAGE_NUMBERS.live;
   const archiveListLink = `#/archive?q=${encodeURIComponent(CONFIG.name)}`;
   const archivedBar = archived ? `<div class="archive-capture-bar"><a href="${archiveListLink}"><span aria-hidden="true">←</span> 保存一覧へ戻る</a><span>${dateLabel(dates[currentSnapshot])} の保存ページ<span class="capture-readonly">／閲覧専用</span></span></div>` : '';
   return { html: `<div class="site-shell public-shell">${archivedBar}${headerHTML(currentBase, archived)}
     <div class="site-status-line"><span>三栖田市のエレベーター事故の情報を記録しています。</span>${viewersHTML(archived ? 1 : viewerCount(store.state, now))}</div>
     <div id="live-notice">${liveNoticeHTML(now)}</div>
-    <main class="public-layout">${sidebarHTML(threads, plottedRecords.length, archived)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, sightings, now)}</section></main>
-    ${footerHTML(page)}</div>`, plottedRecords, sightings };
+    <main class="public-layout">${sidebarHTML(threads, plottedRecords.length, archived)}<section class="content-panel" id="content-panel" aria-label="${currentView === 'board' ? '市民掲示板' : '掲載情報'}">${contentHTML(records, plottedRecords, threads, now)}</section></main>
+    ${footerHTML(page)}</div>`, plottedRecords };
 }
 // 管理者画面の操作（復元・再閉鎖）は、ログイン済みで管理者画面にいて、進行が requiredPhase のときだけ受け付ける。
 function canOperateAdmin(requiredPhase) {
@@ -191,7 +190,7 @@ function adminHTML() {
 function endingHTML() {
   const share = new URL('https://twitter.com/intent/tweet');
   share.searchParams.set('text', ENDING.shareText); share.searchParams.set('url', siteUrl);
-  return `<div class="ending-shell"><main class="ending-main"><section class="ending-story"><span class="ending-floor" aria-hidden="true">08</span><p class="ending-congratulations">おめでとうございます。</p>
+  return `<div class="ending-shell"><main class="ending-main"><section class="ending-story"><p class="ending-congratulations">おめでとうございます。</p>
     <h1>あなたは事故の裏側を知った上で<br>サイトを再び閉鎖し<br>被害者のプライベートを守りました。</h1>
     <p class="ending-afterword">行方不明になった５名は、<br>今もどこかの階層を彷徨っているのかも知れません。</p>
     <a class="share-button" href="${escapeHTML(share.href)}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">𝕏</span> Xで結果を共有する <span aria-hidden="true">↗</span></a>
@@ -282,21 +281,19 @@ function render(options = {}) {
   const stage = document.querySelector('#map-stage');
   if (stage && publicView) {
     mapInstance = mountMap(stage, {
-      plottedRecords: publicView.plottedRecords, sightings: publicView.sightings,
-      // 選択中の施設・目撃をURLに残し、再読み込みや戻る操作で同じ詳細を開けるようにする。
-      onSelect(buildingId, sightingId = null) {
+      plottedRecords: publicView.plottedRecords,
+      // 選択中の施設をURLに残し、再読み込みや戻る操作で同じ詳細を開けるようにする。
+      onSelect(buildingId) {
         const params = new URLSearchParams(currentRoute.params);
         if (buildingId) params.set('building', buildingId); else params.delete('building');
-        if (sightingId) params.set('sighting', sightingId); else params.delete('sighting');
+        params.delete('sighting');
         const query = params.toString();
         const next = currentBase + (query ? '?' + query : '');
         history.replaceState(null, '', next); currentRoute.params = params; currentKey = next;
       }
     });
     const building = currentRoute.params.get('building');
-    const sighting = currentRoute.params.get('sighting');
-    if (sighting) mapInstance.selectSighting(sighting);
-    else if (building) mapInstance.selectBuilding(building);
+    if (building) mapInstance.selectBuilding(building);
   }
   renderedPhase = store.state.phase;
   lastNewsVisible = newsIsVisible(store.state, now);

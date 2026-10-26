@@ -130,7 +130,7 @@ test('動きを減らす設定では解体の待機を省き、閉鎖のお知�
     type: 'publish', report: { ...TARGET_BUILDING, source: NEWS_BODY }
   }, startedAt + CONFIG.newsDelay);
   const timers = [];
-  const { app, body, click, savedPhase } = await loadAppAt(t, published, () => {
+  const { app, body, click, savedPhase, windowEvents } = await loadAppAt(t, published, () => {
     t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
       timers.push({ callback, delay });
       return timers.length;
@@ -143,6 +143,12 @@ test('動きを減らす設定では解体の待機を省き、閉鎖のお知�
   assert.match(app.innerHTML, /class="closing-curtain"/);
   assert.doesNotMatch(app.innerHTML, /shutdown-brand/);
   assert.deepEqual(timers.map(timer => timer.delay), [CONFIG.closingNoticeHold]);
+  timers[0].callback();
+  timers[1].callback();
+  windowEvents.get('hashchange')();
+  assert.match(app.innerHTML, /class="ending-story"><p class="ending-congratulations">/);
+  assert.doesNotMatch(app.innerHTML, /ending-floor|>08</);
+  assert.match(app.innerHTML, /全8ページ中8ページ/);
 });
 
 test('サイトの復元は確認ダイアログで確定するまで実行しない', async t => {
@@ -165,6 +171,8 @@ test('サイトの復元は確認ダイアログで確定するまで実行し�
   let now = JSON.parse(storage.getItem(CONFIG.storageKey)).restoredAt;
   t.mock.method(Date, 'now', () => now);
   windowEvents.get('hashchange')();
+  assert.doesNotMatch(app.innerHTML, /ニュース検索|<span>WEBアーカイブ<\/span>/);
+  assert.match(app.innerHTML, /<span>事故一覧<\/span>/);
   assert.doesNotMatch(app.innerHTML, /class="new-post-notice"/, 'ニュース到着前に新着案内のヒントを出さない');
   assert.equal(body.dataset.pageEnter, 'on');
   elements['#live-notice'] = { innerHTML: '' };
@@ -224,6 +232,13 @@ test('ヒントは保存・画面移動後も有効で、指定の保存世代�
   const state = createState(Date.parse('2026-10-25T12:00:00+09:00'));
   const { app, elements, location, windowEvents, click, body } = await loadAppAt(t, state, undefined, { hash: '#/closed', hints: 'on' });
   const move = hash => { location.hash = hash; windowEvents.get('hashchange')(); };
+  for (const base of ['#/archive/latest', '#/archive/middle', '#/archive/oldest']) {
+    move(base + '?view=news');
+    assert.doesNotMatch(app.innerHTML, /ニュース検索|<span>WEBアーカイブ<\/span>/);
+    assert.match(app.innerHTML, /<h2>事故一覧<\/h2>/);
+    assert.match(app.innerHTML, /保存一覧へ戻る/);
+  }
+  move('#/closed');
   assert.equal(body.dataset.hints, 'on', '再読み込み時に設定を復帰する');
   assert.match(app.innerHTML, /<span data-hint="text">三栖田えれ<\/span>/);
   assert.match(app.innerHTML, /<span data-hint="text">三栖田えれ\(β\)<\/span> 管理人/);
@@ -251,12 +266,14 @@ test('ヒントは保存・画面移動後も有効で、指定の保存世代�
   assert.match(app.innerHTML, /<span data-hint="text">トランプゲーム<\/span>全般。<span data-hint="text">手塚治虫のマンガ<\/span>にもあるやつとか/);
   assert.match(app.innerHTML, /<span data-hint="text">夜９時<\/span>ころ/);
   assert.match(app.innerHTML, /サイコロを振って<span data-hint="text">出た目を足し算<\/span>する/);
-  const movieLink = app.innerHTML.match(/<a href="([^"]+)" target="_blank" rel="noopener noreferrer" aria-label="ラスベガスをぶっつぶせをGoogleで検索（別タブ）">『ラスベガスをぶっつぶせ』<\/a>/);
-  assert.ok(movieLink, '映画名はヒントの強調をせず、安全指定を付けた別タブの検索リンクにする');
-  const search = new URL(movieLink[1]);
-  assert.equal(search.origin, 'https://www.google.com');
-  assert.equal(search.pathname, '/search');
-  assert.equal(search.searchParams.get('q'), 'ラスベガスをぶっつぶせ');
+  assert.match(app.innerHTML, /『<span data-hint="text">ラスベガスをぶっつぶせ<\/span>』/);
+  assert.match(app.innerHTML, /行方不明になった<span data-hint="text">人の魂<\/span>も/);
+  assert.doesNotMatch(app.innerHTML, /google\.com|Googleで検索/);
+  move('#/archive/oldest?view=profile');
+  assert.match(app.innerHTML, /『<span data-hint="text">ラスベガスをぶっつぶせ<\/span>』/);
+  assert.match(app.innerHTML, /<span data-hint="text">人の魂<\/span>/);
+  assert.equal((app.innerHTML.match(/<dt>/gu) ?? []).length, 6);
+  assert.doesNotMatch(app.innerHTML, /30代/);
   for (const snapshot of ['latest', 'middle']) {
     move(`#/archive/${snapshot}?view=board`);
     assert.equal(body.dataset.snapshot, snapshot);
@@ -269,7 +286,7 @@ test('ヒントは保存・画面移動後も有効で、指定の保存世代�
   await click('toggle-hints');
   windowEvents.get('hashchange')();
   assert.equal(body.dataset.hints, 'off');
-  assert.match(app.innerHTML, /target="_blank" rel="noopener noreferrer"/, '検索リンクはヒントがオフでも利用できる');
+  assert.doesNotMatch(app.innerHTML, /google\.com|Googleで検索/, 'ヒントがオフでも映画名はリンクにしない');
   move('#/archive/oldest?view=board');
   assert.equal(body.dataset.snapshot, 'oldest', '最古の保存だけに地図のヒント用スタイルを適用する');
   assert.doesNotMatch(app.innerHTML, /data-hint=/);

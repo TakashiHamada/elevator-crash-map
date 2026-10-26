@@ -90,17 +90,9 @@ function hintTextHTML(value, hintText) {
   parts.push(escapeHTML(value.slice(cursor)));
   return parts.join('');
 }
-// プロフィールの補足指定に従い、ヒント部分や通常の外部検索リンクを組み立てる。
-function profileFactHTML(value, { hintText, searchQuery } = {}) {
-  const text = hintTextHTML(value, hintText);
-  if (!searchQuery) return text;
-  const search = new URL('https://www.google.com/search');
-  search.searchParams.set('q', searchQuery);
-  return `<a href="${escapeHTML(search.href)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHTML(searchQuery)}をGoogleで検索（別タブ）">${text}</a>`;
-}
-// snapshot ごとに出す情報が違う: middle だけ数字の手掛かり（facts）を載せ、latest 以降は「修正しました」の注記を出す。
+// 中間・最古の保存には手掛かりを載せ、最新・現行サイトには修正の注記を出す。
 export function profileHTML(snapshot) {
-  const facts = snapshot === 'middle' ? `<dl class="profile-facts">${PROFILE.facts.map(([key, value, options]) => `<div><dt>${escapeHTML(key)}</dt><dd>${profileFactHTML(value, options)}</dd></div>`).join('')}</dl>` : '';
+  const facts = ['middle', 'oldest'].includes(snapshot) ? `<dl class="profile-facts">${PROFILE.facts.map(([key, value, options]) => `<div><dt>${escapeHTML(key)}</dt><dd>${hintTextHTML(value, options?.hintText)}</dd></div>`).join('')}</dl>` : '';
   const editedNote = snapshot === 'latest' || snapshot === 'live' ? `<p class="profile-edited">${escapeHTML(PROFILE.edited)}</p>` : '';
   return `<div class="profile-heading"><img class="profile-avatar" src="assets/admin-avatar.webp" alt="管理人のアイコン" width="53" height="53"><div><p>${escapeHTML(CONFIG.name)}</p><h2>管理人について</h2></div></div>
     <p class="preserve-lines">${escapeHTML(snapshot === 'oldest' ? PROFILE.oldest : PROFILE.common)}</p>
@@ -122,17 +114,17 @@ export function reportHTML() {
     </form>`;
 }
 /** 地図画面の枠。plottedRecords は地図に出す事故（掲載済みなら投稿分を含む。map.js の mapRecords で作る）。 */
-export function mapHTML(plottedRecords, sightings = [], archived = false) {
+export function mapHTML(plottedRecords) {
   const recordCount = plottedRecords.length;
   return `<div class="map-heading"><div><p class="section-label">三栖田市／事故記録</p><h2>エレベーター事故マップ</h2></div><span class="record-total"><strong>${recordCount}</strong> 件</span></div>
     <div class="map-stage" id="map-stage" tabindex="0" role="region" aria-label="三栖田市の地図。矢印キーで移動、プラス・マイナスで拡大縮小できます。">
       <div class="map-world" id="map-world"></div>
       <div class="map-controls"><button type="button" data-map-action="in" aria-label="地図を拡大">＋</button><button type="button" data-map-action="out" aria-label="地図を縮小">−</button></div>
-      <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${recordCount}</button><button type="button" data-map-layer="sightings" aria-pressed="true" ${sightings.length ? '' : 'disabled'}><i class="legend-sighting" aria-hidden="true">目</i> 目撃情報 ${sightings.length}</button></div>
+      <div class="map-legend" aria-label="地図の表示レイヤー"><button type="button" data-map-layer="accidents" aria-pressed="true"><i aria-hidden="true">!</i> 事故記録 ${recordCount}</button></div>
       <div class="map-scale-box"><span id="map-scale">500 m</span></div>
       <aside id="map-detail" class="map-detail" aria-labelledby="detail-title" hidden></aside>
     </div>
-    <div class="map-below"><p>地図は上が北。赤：事故／青：目撃・証言。建物を押すと詳細、拡大で施設名・番地を表示。</p></div>`;
+    <div class="map-below"><p>地図は上が北。赤いピンは事故記録。建物を押すと詳細、拡大で施設名・番地を表示。</p></div>`;
 }
 export function postingHelpHTML(archived = false) {
   return `<div class="document-page"><p class="section-label">ご利用案内</p><h2>投稿方法</h2>
@@ -150,8 +142,8 @@ export function updatesHTML(snapshot, date, records) {
     ${records.slice(0, 5).map(item => `<div><dt>${dateLabel(item.date)}</dt><dd>事故記録 ${escapeHTML(item.id)} を掲載しました。</dd></div>`).join('')}
     </dl><p>情報の訂正・追加は「事故情報を投稿する」からお寄せください。</p></div>`;
 }
-/** 「ニュース検索」画面の事故報道一覧（保存世代・現行サイト共通）。 */
+/** 「事故一覧」画面の事故報道一覧（保存世代・現行サイト共通）。 */
 export function newsIndexHTML(records, base) {
   const items = records.map(record => `<a href="${makeRoute(base, 'map', { building: record.buildingId })}"><time>${dateLabel(record.date)}</time><strong>${escapeHTML(getBuilding(record.buildingId).name)}で${escapeHTML(record.type)}</strong><small>${escapeHTML(record.source)}</small></a>`).join('');
-  return `<div class="document-page"><p class="section-label">市内の事故報道</p><h2>ニュース検索</h2><p>エレベーター事故に関する報道を、自動で検索して表示しています。</p><div class="news-index">${items}</div></div>`;
+  return `<div class="document-page"><p class="section-label">市内の事故報道</p><h2>事故一覧</h2><p>これまでに掲載したエレベーター事故の記録です。</p><div class="news-index">${items}</div></div>`;
 }

@@ -112,7 +112,7 @@ body[data-hints="on"] [data-hint="text"] { color: var(--hint-text-color); }
 body[data-hints="on"] [data-hint="action"] { color: var(--hint-color); animation: hint-pulse var(--hint-pulse-duration) ease-in-out infinite; }
 body[data-hints="on"][data-snapshot="oldest"] [data-hint="oldest-date"] { color: var(--hint-text-color); }
 /* ピン本体の位置・倍率は変えず、背景の周囲だけを明滅させる。 */
-body[data-hints="on"][data-snapshot="oldest"] .map-pin:not(.map-pin--sighting)::before { animation: hint-map-pulse var(--hint-pulse-duration) ease-in-out infinite; }
+body[data-hints="on"][data-snapshot="oldest"] .map-pin::before { animation: hint-map-pulse var(--hint-pulse-duration) ease-in-out infinite; }
 @keyframes hint-map-pulse {
   0%, 100% { box-shadow: 0 0 0 0 transparent; }
   50% { box-shadow: 0 0 0 var(--hint-map-ring-size) color-mix(in srgb, var(--hint-text-color) 50%, transparent); }
@@ -300,15 +300,7 @@ body[data-closing="dismantle"] .admin-operation-button--close {
 .map-legend button[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
 .map-legend button:disabled { opacity: .45; }
 .map-legend i { display: inline-flex; align-items: center; justify-content: center; width: 1.25em; height: 1.4em; background: var(--red); color: white; font: normal var(--text-caption) Georgia, serif; flex-shrink: 0; }
-.map-legend i.legend-sighting { width: 1.4em; height: 1.4em; border-radius: 50%; background: #357eb8; font: normal var(--text-caption) sans-serif; }
-.map-pin--sighting { background: #357eb8; border: 2px solid #fff; border-radius: 50%; width: 1.875rem; height: 1.875rem; font: var(--text-caption)/1 sans-serif; z-index: 1; transform: translate(-50%, -50%) scale(var(--inverse-scale)); transform-origin: 50% 50%; }
-.map-pin--sighting > span { position: static; font: var(--text-caption)/1 sans-serif; }
-.map-pin--sighting::before, .map-pin--sighting::after { display: none; }
-.map-pin--sighting:hover, .map-pin--sighting[aria-expanded="true"] { background: #1b5689; z-index: 3; }
-.map-stage[data-accidents-hidden="true"] .map-pin:not(.map-pin--sighting),
-.map-stage[data-sightings-hidden="true"] .map-pin--sighting { display: none; }
-.detail-kicker--sighting { color: #357eb8; }
-.sighting-note { font-size: var(--text-caption); line-height: 1.9; color: #8b9486; border-top: 1px solid var(--line); padding-top: 15px; margin-top: 20px; }
+.map-stage[data-accidents-hidden="true"] .map-pin { display: none; }
 /* 地図右下の縮尺表示の枠。 */
 .map-scale-box { position: absolute; bottom: 5px; right: 7px; font-size: var(--text-caption); color: #78816e; background: #fffefaac; padding: 0 4px; pointer-events: none; }
 #map-scale { display: inline-block; border-bottom: 2px solid #747c6e; text-align: center; white-space: nowrap; font-family: ui-monospace, monospace; }
@@ -525,7 +517,6 @@ body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button:not(.b
 /* クリアと本編への導線 */
 .ending-main { width: min(700px, 100%); margin: auto; padding: 66px 35px 65px; }
 .ending-story { border-bottom: 1px solid #354239; padding-bottom: 65px; }
-.ending-floor { display: block; font: 2.6875rem ui-monospace, "SFMono-Regular", monospace; line-height: 1.4; color: #728779; letter-spacing: .12em; margin-bottom: 42px; }
 .ending-congratulations { color: #b2c2b5; font-size: var(--body-size); margin-bottom: 24px; }
 .ending-story h1 { font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; font-weight: 400; font-size: clamp(1.375rem, 3.5vw, 1.8125rem); line-height: 2; letter-spacing: .01em; color: #dee6dc; margin-bottom: 28px; }
 .ending-afterword { font-size: var(--body-size); line-height: 2.2; color: #8c9f90; margin-bottom: 36px; }
@@ -677,7 +668,6 @@ body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button:not(.b
   .admin-memo > p:not(.admin-note-label) { font-size: var(--body-size); line-height: 2.3; margin-bottom: 27px; }
   .admin-operation { margin-top: 42px; }
   .ending-main { padding: 46px 28px 42px; }
-  .ending-floor { font-size: 2.25rem; margin-bottom: 34px; }
   .ending-congratulations { font-size: var(--text-small); }
   .ending-story { padding-bottom: 48px; }
   .ending-afterword { font-size: var(--body-size); line-height: 2.2; }
@@ -743,5 +733,5 @@ body[data-page-enter="on"] :where(
   *, *::before, *::after { scroll-behavior: auto !important; }
   #site-dialog[data-context="game"], #site-dialog[data-context="game"]::backdrop { transition: none; }
   body[data-hints="on"] [data-hint="action"] { animation: none; background: var(--hint-tint); box-shadow: 0 0 0 var(--hint-ring-size) var(--hint-color); }
-  body[data-hints="on"][data-snapshot="oldest"] .map-pin:not(.map-pin--sighting)::before { animation: none; box-shadow: 0 0 0 var(--hint-map-ring-size) color-mix(in srgb, var(--hint-text-color) 50%, transparent); }
+  body[data-hints="on"][data-snapshot="oldest"] .map-pin::before { animation: none; box-shadow: 0 0 0 var(--hint-map-ring-size) color-mix(in srgb, var(--hint-text-color) 50%, transparent); }
 }

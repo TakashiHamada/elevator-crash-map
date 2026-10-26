@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises';
 import { inflateSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { MAP_LAYOUT } from '../map-layout.js';
-import { MAP_CONFIG, BUILDINGS, ACCIDENTS, SIGHTINGS, TARGET_BUILDING, sightingsForSnapshot, recordsForSnapshot } from '../data.js';
+import { MAP_CONFIG, BUILDINGS, ACCIDENTS, TARGET_BUILDING, recordsForSnapshot } from '../data.js';
 import { snapshotDates, createState } from '../game-state.js';
-import { mapSVG, sightingPinsHTML, sightingDetailHTML, buildingDetailHTML, mapScale, mountMap } from '../map.js';
+import { mapSVG, buildingDetailHTML, mapScale, mountMap } from '../map.js';
 import { mapHTML } from '../community.js';
 
 // PNGの画素を直接読み、座標が道路・水面・建物のどこに当たるかを検証します。
@@ -126,26 +126,41 @@ test('全施設の切り抜き・当たり領域が同じ原寸の輪郭を使�
     assert.ok(svg.includes(`<polygon class="building-hit-area" points="${points}"`), place.id);
   }
 });
-test('6件の目撃地点は付近の歩道や広場の明るい地面にあり、水面と建物内部を避ける', async () => {
-  const image = await imageData();
-  assert.equal(SIGHTINGS.length, 6); // 脚本上の件数。変更時は README も更新する
-  assert.equal(new Set(SIGHTINGS.map(item => item.id)).size, SIGHTINGS.length);
-  for (const item of SIGHTINGS) {
-    const place = BUILDINGS.find(entry => entry.id === item.buildingId), color = image.pixel(item.x, item.y);
-    assert.ok(place);
-    assert.ok(!isWater(color), item.id + ': 水面');
-    assert.ok(Math.min(...color) > 242 && Math.max(...color) - Math.min(...color) < 15, item.id + ': 歩道・広場外');
-    assert.ok(Math.hypot(item.x - place.x, item.y - place.y) < 65, item.id + ': 証言の施設から離れている');
-    assert.ok(item.x < place.box[0] || item.x >= place.box[2] || item.y < place.box[1] || item.y >= place.box[3], item.id + ': 建物内部');
+test('6件の証言は関連する事故の口コミに一度ずつ入り、元の情報を表示する', () => {
+  const expectedTitles = {
+    first: '保守事務所の前で聞き込みをする男性',
+    'east-third': '事故翌日、現場近くにいた男性',
+    hall: '会館の前で同じ男性を見かけた',
+    'cold-storage': '倉庫の近くで写真を撮っていた男性',
+    station: '終電後に動いていたエレベーター',
+    central: '事故の後に現れた黒い上着の男性'
+  };
+  const comments = ACCIDENTS.flatMap(record => record.comments.filter(comment => typeof comment !== 'string'));
+  assert.equal(comments.length, 6);
+  assert.equal(new Set(comments.map(comment => comment.title)).size, 6);
+  for (const [buildingId, title] of Object.entries(expectedTitles)) {
+    const record = ACCIDENTS.find(item => item.buildingId === buildingId);
+    const comment = record.comments.find(item => item.title === title);
+    assert.ok(comment, buildingId);
+    const detail = buildingDetailHTML(BUILDINGS.find(item => item.id === buildingId), record);
+    const review = detail.slice(detail.indexOf('<section class="record-comments">'));
+    for (const value of [comment.title, comment.body, comment.location, comment.source]) assert.ok(review.includes(value), value);
+    assert.ok(review.includes(comment.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/u, '$1年$2月$3日')));
+    assert.match(review, new RegExp(`口コミ <span>${record.comments.length}件</span>`));
   }
 });
-test('目撃情報は保存日以前のものだけを表示し、最古の保存には追加しない', () => {
-  // 保存日より後の目撃は出さない（脚本上の世代別件数）。
-  assert.equal(sightingsForSnapshot('oldest', dates).length, 0);
-  assert.equal(sightingsForSnapshot('middle', dates).length, 4);
-  assert.equal(sightingsForSnapshot('latest', dates).length, 6);
-  assert.equal(sightingsForSnapshot('live', dates).length, 6);
-  for (const snapshot of ['oldest', 'middle', 'latest']) assert.ok(sightingsForSnapshot(snapshot, dates).every(item => item.date <= dates[snapshot]));
+test('保存日の未来の口コミは隠し、保存日当日から表示し、現行のデータを変更しない', () => {
+  for (const [snapshot, expected] of [['oldest', 0], ['middle', 4], ['latest', 6]]) {
+    const comments = recordsForSnapshot(snapshot, dates).flatMap(record => record.comments.filter(comment => typeof comment !== 'string'));
+    assert.equal(comments.length, expected, snapshot);
+    assert.ok(comments.every(comment => comment.date <= dates[snapshot]));
+  }
+  const firstComment = ACCIDENTS.find(record => record.buildingId === 'first').comments.at(-1);
+  const before = recordsForSnapshot('oldest', { oldest: '2019-03-01' }).find(record => record.buildingId === 'first');
+  const onDate = recordsForSnapshot('oldest', { oldest: '2019-03-02' }).find(record => record.buildingId === 'first');
+  assert.ok(!before.comments.includes(firstComment));
+  assert.ok(onDate.comments.includes(firstComment));
+  assert.equal(ACCIDENTS.flatMap(record => record.comments.filter(comment => typeof comment !== 'string')).length, 6);
 });
 test('現場は画像の川の東岸・線路と橋の南側で、両側に空地がある', async () => {
   const place = TARGET_BUILDING, geography = MAP_LAYOUT.geography, image = await imageData();
@@ -167,20 +182,11 @@ test('拡大率に応じて縮尺の線と距離が同じ倍率で変わる', ()
     assert.ok(scale.pixels >= MAP_CONFIG.scaleBarPixels / 3);
   }
 });
-test('目撃ピン・詳細・表示レイヤーが同じ証言を指す', () => {
-  const html = sightingPinsHTML(SIGHTINGS);
-  for (const item of SIGHTINGS) {
-    assert.ok(html.includes('data-sighting-id="' + item.id + '"'));
-    assert.ok(html.includes('left:' + item.x + 'px;top:' + item.y + 'px'));
-    const detail = sightingDetailHTML(item);
-    assert.ok(detail.includes(item.title));
-    assert.ok(detail.includes(item.body));
-    assert.ok(detail.includes('data-building-id="' + item.buildingId + '"'));
-  }
-  const controls = mapHTML(ACCIDENTS, SIGHTINGS);
+test('地図の凡例と説明は事故記録に統一する', () => {
+  const controls = mapHTML(ACCIDENTS);
   assert.match(controls, /data-map-layer="accidents"/u);
-  assert.match(controls, /data-map-layer="sightings"/u);
-  assert.match(controls, /目撃情報 6/u);
+  assert.match(controls, /事故記録 18/u);
+  assert.doesNotMatch(controls, /sighting|目撃|青：/u);
 });
 test('全施設を支援技術から識別でき、キーボードでフォーカスできる', () => {
   // 生成SVGの階層を追い、施設自身だけでなく祖先の aria-hidden も確認する。
@@ -236,7 +242,7 @@ test('詳細は地図のタップ・クリックで閉じ、別スポットで�
   const facility = node(['[data-building-id]', '.map-building'], world, { buildingId: BUILDINGS[0].id });
   let keyboardFocus = false;
   facility.matches = selector => selector === ':focus-visible' && keyboardFocus;
-  const sighting = node(['[data-sighting-id]', 'button'], world, { sightingId: SIGHTINGS[0].id });
+  const otherFacility = node(['[data-building-id]', 'button'], world, { buildingId: BUILDINGS[1].id });
   const click = target => handlers.get('click')({ target, detail: 1 });
   const pointer = (type, pointerType, x = 100, pointerId = 1) => handlers.get(type)({
     target: background, pointerId, pointerType, button: 0, clientX: x, clientY: 100
@@ -251,7 +257,7 @@ test('詳細は地図のタップ・クリックで閉じ、別スポットで�
       else delete globalThis[key];
     });
   }
-  const map = mountMap(stage, { plottedRecords: ACCIDENTS, sightings: SIGHTINGS,
+  const map = mountMap(stage, { plottedRecords: ACCIDENTS,
     onSelect: (...ids) => selections.push(ids) });
   t.after(() => map.destroy());
 
@@ -268,15 +274,16 @@ test('詳細は地図のタップ・クリックで閉じ、別スポットで�
     click(node([], facility)); // 建物の子要素を押しても、一度閉じずに切り替わる。
     assert.equal(panel.hidden, false);
     assert.ok(panel.innerHTML.includes(BUILDINGS[0].name));
-    click(node([], sighting));
+    click(node([], otherFacility));
     assert.equal(panel.hidden, false);
-    assert.ok(panel.innerHTML.includes(SIGHTINGS[0].title));
-    assert.deepEqual(selections, [[BUILDINGS[0].id], [null, SIGHTINGS[0].id]]);
+    assert.ok(panel.innerHTML.includes(BUILDINGS[1].name));
+    assert.deepEqual(selections, [[BUILDINGS[0].id], [BUILDINGS[1].id]]);
 
     selections.length = 0;
     click(node([], panel));
     click(node(['button', '[data-map-action]'], stage, { mapAction: 'in' }));
-    click(node(['button', '[data-map-layer]'], stage, { mapLayer: 'sightings' }));
+    click(node(['button', '[data-map-layer]'], stage, { mapLayer: 'accidents' }));
+    assert.equal(stage.dataset.accidentsHidden, 'false');
     assert.equal(panel.hidden, false);
     assert.deepEqual(selections, []);
 
@@ -346,7 +353,7 @@ test('右端の建物と詳細が重なると左へ表示し、移動・倍率�
       else delete globalThis[key];
     });
   }
-  const map = mountMap(stage, { plottedRecords: ACCIDENTS, sightings: SIGHTINGS });
+  const map = mountMap(stage, { plottedRecords: ACCIDENTS });
   t.after(() => map.destroy());
   const keydown = key => handlers.get('keydown')({ key, target: stage, preventDefault() {} });
   stage.closest = () => null;

@@ -17,7 +17,7 @@
 <body>
   <main id="share-map"></main>
   <script type="module">
-    import { ACCIDENTS, SIGHTINGS, MAP_CONFIG } from './data.js';
+    import { ACCIDENTS, MAP_CONFIG } from './data.js';
     import { mapHTML } from './community.js';
     import { mountMap } from './map.js';
 
@@ -26,8 +26,8 @@
     basemap.src = MAP_CONFIG.image;
     await basemap.decode();
     await document.fonts.ready;
-    document.querySelector('#share-map').innerHTML = mapHTML(ACCIDENTS, SIGHTINGS);
-    mountMap(document.querySelector('#map-stage'), { plottedRecords: ACCIDENTS, sightings: SIGHTINGS });
+    document.querySelector('#share-map').innerHTML = mapHTML(ACCIDENTS);
+    mountMap(document.querySelector('#map-stage'), { plottedRecords: ACCIDENTS });
     document.documentElement.dataset.imageReady = 'true';
   </script>
 </body>
