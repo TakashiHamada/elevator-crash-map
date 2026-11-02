@@ -7,7 +7,7 @@ import { MAP_LAYOUT } from '../map-layout.js';
 import { MAP_CONFIG, BUILDINGS, ACCIDENTS, TARGET_BUILDING, recordsForSnapshot } from '../data.js';
 import { snapshotDates, createState } from '../game-state.js';
 import { mapSVG, buildingDetailHTML, mapScale, mountMap } from '../map.js';
-import { mapHTML } from '../community.js';
+import { mapHTML, escapeHTML } from '../community.js';
 
 // PNGの画素を直接読み、座標が道路・水面・建物のどこに当たるかを検証します。
 // 依存ライブラリは使わず、生成された8bit RGB/RGBA PNGを対象にします。
@@ -126,41 +126,35 @@ test('全施設の切り抜き・当たり領域が同じ原寸の輪郭を使�
     assert.ok(svg.includes(`<polygon class="building-hit-area" points="${points}"`), place.id);
   }
 });
-test('6件の証言は関連する事故の口コミに一度ずつ入り、元の情報を表示する', () => {
-  const expectedTitles = {
-    first: '保守事務所の前で聞き込みをする男性',
-    'east-third': '事故翌日、現場近くにいた男性',
-    hall: '会館の前で同じ男性を見かけた',
-    'cold-storage': '倉庫の近くで写真を撮っていた男性',
-    station: '終電後に動いていたエレベーター',
-    central: '事故の後に現れた黒い上着の男性'
-  };
-  const comments = ACCIDENTS.flatMap(record => record.comments.filter(comment => typeof comment !== 'string'));
-  assert.equal(comments.length, 6);
-  assert.equal(new Set(comments.map(comment => comment.title)).size, 6);
-  for (const [buildingId, title] of Object.entries(expectedTitles)) {
-    const record = ACCIDENTS.find(item => item.buildingId === buildingId);
-    const comment = record.comments.find(item => item.title === title);
-    assert.ok(comment, buildingId);
-    const detail = buildingDetailHTML(BUILDINGS.find(item => item.id === buildingId), record);
+test('口コミは関連する事故の詳細に匿名投稿として順番と件数を保って表示する', () => {
+  for (const record of ACCIDENTS) {
+    const detail = buildingDetailHTML(BUILDINGS.find(item => item.id === record.buildingId), record);
     const review = detail.slice(detail.indexOf('<section class="record-comments">'));
-    for (const value of [comment.title, comment.body, comment.location, comment.source]) assert.ok(review.includes(value), value);
-    assert.ok(review.includes(comment.date.replace(/^(\d{4})-(\d{2})-(\d{2})$/u, '$1年$2月$3日')));
     assert.match(review, new RegExp(`口コミ <span>${record.comments.length}件</span>`));
+    const rendered = [...review.matchAll(/<div><small>(\d+)：名無しの市民<\/small><p class="preserve-lines">([\s\S]*?)<\/p><\/div>/gu)];
+    assert.deepEqual(rendered.map(([, number]) => Number(number)), record.comments.map((_, index) => index + 1));
+    assert.deepEqual(rendered.map(([, , body]) => body), record.comments.map(escapeHTML));
   }
 });
 test('保存日の未来の口コミは隠し、保存日当日から表示し、現行のデータを変更しない', () => {
-  for (const [snapshot, expected] of [['oldest', 0], ['middle', 4], ['latest', 6]]) {
-    const comments = recordsForSnapshot(snapshot, dates).flatMap(record => record.comments.filter(comment => typeof comment !== 'string'));
-    assert.equal(comments.length, expected, snapshot);
-    assert.ok(comments.every(comment => comment.date <= dates[snapshot]));
+  // 日付付き口コミの対応は、脚本の文面に依存せずフィクスチャで検証する。
+  const record = ACCIDENTS.find(item => item.buildingId === 'first');
+  const originalComments = record.comments;
+  const datedComment = { date: '2019-03-02', body: '日付付きの口コミ' };
+  record.comments = [...originalComments, datedComment];
+  try {
+    for (const snapshot of ['oldest', 'middle', 'latest']) {
+      const comments = recordsForSnapshot(snapshot, dates).find(item => item.id === record.id).comments;
+      assert.deepEqual(comments, datedComment.date <= dates[snapshot] ? [...originalComments, datedComment] : originalComments);
+    }
+    const before = recordsForSnapshot('oldest', { oldest: '2019-03-01' }).find(item => item.id === record.id);
+    const onDate = recordsForSnapshot('oldest', { oldest: '2019-03-02' }).find(item => item.id === record.id);
+    assert.ok(!before.comments.includes(datedComment));
+    assert.ok(onDate.comments.includes(datedComment));
+    assert.deepEqual(record.comments, [...originalComments, datedComment]);
+  } finally {
+    record.comments = originalComments;
   }
-  const firstComment = ACCIDENTS.find(record => record.buildingId === 'first').comments.at(-1);
-  const before = recordsForSnapshot('oldest', { oldest: '2019-03-01' }).find(record => record.buildingId === 'first');
-  const onDate = recordsForSnapshot('oldest', { oldest: '2019-03-02' }).find(record => record.buildingId === 'first');
-  assert.ok(!before.comments.includes(firstComment));
-  assert.ok(onDate.comments.includes(firstComment));
-  assert.equal(ACCIDENTS.flatMap(record => record.comments.filter(comment => typeof comment !== 'string')).length, 6);
 });
 test('現場は画像の川の東岸・線路と橋の南側で、両側に空地がある', async () => {
   const place = TARGET_BUILDING, geography = MAP_LAYOUT.geography, image = await imageData();

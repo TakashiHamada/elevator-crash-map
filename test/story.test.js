@@ -288,7 +288,7 @@ test('投稿フォームの丁目・番地は1から施設の最大値まで並�
   assert.deepEqual(values('lot'), Array.from({ length: 12 }, (_, index) => index + 1));
   assert.ok(values('chome').includes(TARGET_BUILDING.chome) && values('lot').includes(TARGET_BUILDING.lot));
 });
-test('考察メモの強調はデータで指定した段落に付く', () => {
+test('メモの強調はデータで指定した段落に付く', () => {
   assert.deepEqual(ADMIN_MEMO.filter(item => item.emphasis).map(item => item.emphasis), ['resolution', 'location']);
   assert.match(ADMIN_MEMO.find(item => item.emphasis === 'location').text, /隣り合った建物が無くて/u);
 });

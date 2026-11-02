@@ -38,7 +38,6 @@ const HINT_THREAD_BASES = {
 };
 const isHintedThread = (thread, base) => HINT_THREAD_BASES[thread.id]?.includes(base) ?? false;
 export function threadListHTML(threads, base, state) {
-  const readonlyNote = base.includes('/archive/') ? '保存された掲示板です。新しい書き込みはできません。' : '掲示板への新規書き込みは、現在受け付けていません。事故情報は「事故情報を投稿する」からお寄せください。';
   const rows = threads.map(thread => {
     const updated = thread.dynamic ? dateLabel(localDate(state.restoredAt)) + '　更新' : dateLabel(thread.date);
     return `<a class="thread-row${thread.dynamic ? ' thread-row--new' : ''}" href="${makeRoute(base, 'board', { thread: thread.id })}" data-thread-id="${thread.id}">
@@ -48,7 +47,7 @@ export function threadListHTML(threads, base, state) {
     <p class="board-rules">個人情報の書き込み、無断転載はおやめください。</p>
     <div class="thread-table"><div class="thread-table-head"><span>スレッド一覧</span><span>書き込み</span></div>
     ${rows}
-    </div><p class="board-readonly">${readonlyNote}</p>`;
+    </div>`;
 }
 function postClock(thread, index, state) {
   if (thread.dynamic) {
@@ -73,7 +72,7 @@ export function threadHTML(thread, base, state) {
   return `<div class="thread-nav"><a href="${makeRoute(base, 'board')}">← スレッド一覧</a><span data-post-count>${thread.posts.length}件の書き込み</span></div>
     <h2 class="thread-title">${escapeHTML(thread.title)}</h2>
     <div class="thread-posts" data-thread-posts="${thread.id}">${thread.posts.map((post, index) => postHTML(post, index, thread, state, base)).join('')}</div>
-    <div class="thread-bottom"><a href="${makeRoute(base, 'board')}">スレッド一覧へ戻る</a><span>書き込みは受け付けていません。</span></div>`;
+    <div class="thread-bottom"><a href="${makeRoute(base, 'board')}">スレッド一覧へ戻る</a></div>`;
 }
 // データで指定した部分を赤文字用の要素で囲む。本文とヒント文字列を別々にエスケープする。
 function hintTextHTML(value, hintText) {

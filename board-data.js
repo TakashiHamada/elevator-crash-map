@@ -55,9 +55,10 @@ export const NEWS = {
   ]
 };
 export const NEWS_BODY = NEWS.paragraphs.join('\n\n');
-// 考察メモの段落。強調したい段落は memo(本文, 'resolution' | 'location') で指定する（CSSの .memo-<種類> が当たる）。
+// メモの段落。強調したい段落は memo(本文, 'resolution' | 'location') で指定する（CSSの .memo-<種類> が当たる）。
 const memo = (text, emphasis = '') => ({ text, emphasis });
 export const ADMIN_MEMO = [
+  memo('俺のミスで、ホームページの情報を組み合わせるとここのパスワードが割れてしまうことが分かった。\nということは、このページを俺以外の誰かが見ることもあるのかも知れないってことだ。\nまぁ、そんな物好きはいないと思うけど。\nもしもの時のために、俺の考えを書き遺しておこうと思う。'),
   memo('町で起きた事故のうち、人が消えたのは「被害者が助からないほど凄惨な事故」ばかりだ。'),
   memo('怪我で済む事故では誰も消えていない。'),
   memo('つまり「遺体で見つかるはずだった人間」だけが、エレベーターの中から消えている。'),
@@ -92,6 +93,18 @@ const post = (body, name = '名無しの市民', special = '') => ({ body, name,
 // ヒント使用中に赤くする部分を投稿に付ける。省略時は本文全体。表示先は community.js の HINT_THREAD_BASES で絞る。
 const hinted = (entry, hintText = entry.body) => ({ ...entry, hintText });
 export const THREADS = [
+  {
+    id: 'closure', title: 'サイト閉鎖のお知らせ', date: '2026-08-29',
+    snapshots: ['latest', 'live'],
+    posts: [
+      post('都合によりこのサイトは間もなく閉鎖することになりました。長らくのご利用、たくさんの情報提供、本当にありがとうございました。', '管理人'),
+      post('閉鎖？'),
+      post('急にどうして？'),
+      post('サイトを作った目的がもうすぐ果たせそうだからです。', '管理人'),
+      post('目的って何だよ'),
+      post('なんか怖いんだけど')
+    ]
+  },
   {
     id: 'profile', title: '管理人のプロフィールなんかワロタ', date: '2026-08-28',
     snapshots: ['latest', 'live'],
@@ -248,5 +261,9 @@ export const ABOUT_PARAGRAPHS = [
   '進行はブラウザーに保存されます。入力内容は外部へ送信されません。'
 ];
 export const ENDING = {
-  shareText: 'この町で起きたエレベーター事故の裏側を知った。\nあなたは「ミスターエレベーター」の真相の一端に触れた。\n#WebARG #ミスターエレベーター\n\n※このゲームは「ミスターエレベーター」の番外編WebARGです。'
+  credits: [
+    { role: '謎制作', name: 'okuta' },
+    { role: '実装', name: 'Takashi Hamada' }
+  ],
+  shareText: 'あなたは「ミスターエレベーター」の真相の一端に触れた。\n#WebARG #ミスターエレベーター\n\n※このゲームは「ミスターエレベーター」の番外編WebARGです。'
 };

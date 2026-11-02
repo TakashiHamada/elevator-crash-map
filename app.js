@@ -97,7 +97,7 @@ function viewersHTML(number) {
 function closureHTML() {
   return `<div class="site-shell closure-shell">${headerHTML()}<main class="closure-main"><div class="closure-viewers">${viewersHTML(closedViewers)}</div>
     <div class="closure-notice"><p class="closure-caption">お知らせ</p><h1>当サイト「<span data-hint="text">三栖田えれ</span>」は<br>都合により閉鎖いたしました。</h1><p>長らくのご利用ありがとうございました。</p><div class="closure-signature"><span data-hint="text">${escapeHTML(CONFIG.name)}</span> 管理人</div></div>
-    <p class="closure-archive"><span>お困りですか？ 提携システム：</span><a href="#/archive" data-hint="action">WEBアーカイブを利用する</a></p>
+    <p class="closure-archive"><span>お困りですか？</span><br><span>提携システム：</span><a href="#/archive" data-hint="action">WEBアーカイブを利用する</a></p>
     </main>${footerHTML(PAGE_NUMBERS.closed)}</div>`;
 }
 function archiveResultItemHTML({ key, label }, date) {
@@ -180,8 +180,8 @@ function adminHTML() {
   const state = store.state;
   const memoHTML = ADMIN_MEMO.map(({ text, emphasis }) => `<p class="${emphasis ? 'memo-' + emphasis : ''}">${escapeHTML(text)}</p>`).join('');
   return `<div class="admin-shell"><header class="admin-header"><a href="${siteEntryHash(state)}">三栖田えれ<span>(β)</span><small>管理者ページ</small></a><button type="button" data-action="logout">ログアウト</button></header>
-    <main class="admin-layout"><aside class="admin-sidebar"><p>CONTROL PANEL</p><a href="#/admin" aria-current="page">考察メモ</a><button disabled>投稿の承認</button><button disabled>アクセス解析</button><button disabled>登録情報</button><button disabled>システム設定</button><div class="admin-site-state"><span>サイトの状態</span><strong>${state.phase === 'closed' ? '閉鎖中' : '公開中'}</strong></div></aside>
-    <div class="admin-content"><div class="admin-breadcrumb">管理者専用 / 個人メモ</div><article class="admin-memo" id="admin-note"><p class="admin-note-label">PRIVATE NOTE</p><h1>考察メモ</h1>
+    <main class="admin-layout"><aside class="admin-sidebar"><p>CONTROL PANEL</p><a href="#/admin" aria-current="page">メモ</a><button disabled>投稿の承認</button><button disabled>アクセス解析</button><button disabled>登録情報</button><button disabled>システム設定</button><div class="admin-site-state"><span>サイトの状態</span><strong>${state.phase === 'closed' ? '閉鎖中' : '公開中'}</strong></div></aside>
+    <div class="admin-content"><div class="admin-breadcrumb">管理者専用 / 個人メモ</div><article class="admin-memo" id="admin-note"><p class="admin-note-label">PRIVATE NOTE</p><h1>メモ</h1>
       ${memoHTML}
     </article><section class="admin-operation" aria-label="サイトの公開設定"><h2>サイトの公開設定</h2>
       ${adminOperationHTML(state.phase)}
@@ -198,6 +198,8 @@ function endingHTML() {
       <p>５人の男女が迷い込んだ異世界。<br>しゃべるエレベーター。<br>彼らが探すものとは一体何なのか。</p>
       <div class="game-wordmark"><small>マジックリアリズム・パズルアドベンチャー</small><strong>ミスターエレベーター</strong><span>MR. ELEVATOR</span></div>
       <p class="release-line">${escapeHTML(CONFIG.releaseLabel)}</p><a class="store-button" href="${escapeHTML(CONFIG.promotionUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(CONFIG.promotionLabel)} <span aria-hidden="true">↗</span></a>
+    </section><section class="ending-credits" aria-labelledby="ending-credits-title"><h2 id="ending-credits-title">WebARG制作</h2>
+      <dl>${ENDING.credits.map(({ role, name }) => `<div><dt>${escapeHTML(role)}</dt><dd>${escapeHTML(name)}</dd></div>`).join('')}</dl>
     </section><p class="ending-fiction">このゲームは「ミスターエレベーター」の番外編WebARGです。<br>登場する地名・人物・事件はすべて架空です。</p><button class="replay-button" data-action="replay">最初から遊ぶ</button></main>
     ${footerHTML(PAGE_NUMBERS.ending)}</div>`;
 }

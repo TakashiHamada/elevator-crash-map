@@ -535,6 +535,12 @@ body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button:not(.b
 .release-line { font-size: var(--text-small); color: #9cb49e; margin: 0 0 18px; }
 .store-button { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 17px 20px; background: #c2d2bd; border: 1px solid #c2d2bd; color: #263c2a !important; font-size: var(--text-small); text-decoration: none; max-width: 460px; }
 .store-button:hover { background: #d2dfcf; }
+.ending-credits { border-top: 1px solid #2e3f32; padding: 24px 0 28px; font-size: var(--text-small); line-height: 2; color: #8da18e; }
+.ending-credits h2 { font-size: var(--text-small); font-weight: 400; color: #b2c2b5; margin: 0 0 14px; }
+.ending-credits dl { margin: 0; }
+.ending-credits dl > div { display: flex; flex-wrap: wrap; gap: 0 18px; }
+.ending-credits dt { width: 5em; }
+.ending-credits dd { margin: 0; color: #becdc0; }
 .ending-fiction { font-size: var(--text-caption); line-height: 2.2; color: #62796a; border-top: 1px solid #2e3f32; padding-top: 24px; }
 .replay-button { border: 0; background: none; color: #819b89; text-decoration: underline; text-underline-offset: 4px; padding: 8px 0; font-size: var(--text-caption); }
 

@@ -65,7 +65,7 @@ export function buildingDetailHTML(place, record) {
     ? `<section class="record-comments"><h4>口コミ <span>${record.comments.length}件</span></h4>${record.comments.map((comment, index) => {
       const entry = typeof comment === 'string' ? { body: comment } : comment;
       const metadata = entry.date ? `／${escapeHTML(dateLabel(entry.date))}／${escapeHTML(entry.source)}` : '';
-      return `<div><small>${index + 1}：名無しの市民${metadata}</small>${entry.title ? `<p><strong>${escapeHTML(entry.title)}</strong></p>` : ''}<p>${escapeHTML(entry.body)}</p>${entry.location ? `<p class="comment-location">場所：${escapeHTML(entry.location)}</p>` : ''}</div>`;
+      return `<div><small>${index + 1}：名無しの市民${metadata}</small>${entry.title ? `<p><strong>${escapeHTML(entry.title)}</strong></p>` : ''}<p class="preserve-lines">${escapeHTML(entry.body)}</p>${entry.location ? `<p class="comment-location">場所：${escapeHTML(entry.location)}</p>` : ''}</div>`;
     }).join('')}<p class="comments-readonly">口コミの投稿は受け付けていません。</p></section>`
     : '';
   return `<button class="detail-close" type="button" data-map-action="close" aria-label="施設情報を閉じる">×</button>
