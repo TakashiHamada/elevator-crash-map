@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CONFIG, NEWS_BODY } from '../board-data.js';
+import { CONFIG, NEWS_BODY, ENDING } from '../board-data.js';
 import { TARGET_BUILDING } from '../data.js';
 import { createState, transition } from '../game-state.js';
 
@@ -313,4 +313,19 @@ test('ヒント設定の保存が拒否されても、そのタブではオン�
   assert.equal(body.dataset.hints, 'on');
   await click('toggle-hints');
   assert.equal(body.dataset.hints, 'off');
+});
+
+test('クリア画面に制作クレジットとPS5版の公式告知を載せ、告知はXの読み込み前でも引用として読める', async t => {
+  const startedAt = Date.parse('2026-10-23T12:00:00+09:00');
+  const restored = transition(createState(startedAt), { type: 'restore' }, startedAt);
+  const published = transition(restored, {
+    type: 'publish', report: { ...TARGET_BUILDING, source: NEWS_BODY }
+  }, startedAt + CONFIG.newsDelay);
+  const complete = transition(published, { type: 'close' }, startedAt + CONFIG.newsDelay + 1000);
+  const { app } = await loadAppAt(t, complete, () => {}, { hash: '#/ending' });
+  for (const { role, name } of ENDING.credits) assert.match(app.innerHTML, new RegExp(`<dt>${role}</dt><dd>${name}</dd>`));
+  assert.match(app.innerHTML, /<blockquote class="twitter-tweet"[^>]*>/);
+  assert.ok(app.innerHTML.includes(`href="${ENDING.officialPost.url}"`), '投稿への直リンクを残す');
+  const order = ['class="release-line"', 'class="ending-official-post"', 'class="store-button"'].map(marker => app.innerHTML.indexOf(marker));
+  assert.ok(order.every((position, index) => position > (order[index - 1] ?? -1)), '発売日→Xの告知→公式サイトの案内の順に並べる');
 });

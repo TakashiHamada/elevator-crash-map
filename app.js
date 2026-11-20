@@ -187,6 +187,25 @@ function adminHTML() {
       ${adminOperationHTML(state.phase)}
     </section></div></main>${footerHTML(PAGE_NUMBERS.admin)}</div>`;
 }
+// PS5版の公式告知。発売日の下に置く。X の埋め込みスクリプトが blockquote を投稿カードに置き換え、読み込めない場合は引用のまま残る。
+function officialPostHTML() {
+  const { url, paragraphs, author, dateLabel: postedLabel } = ENDING.officialPost;
+  const body = paragraphs.map(text => `<p lang="ja" dir="ltr">${escapeHTML(text).replaceAll('\\n', '<br>')}</p>`).join('');
+  return `<div class="ending-official-post"><blockquote class="twitter-tweet" data-lang="ja" data-theme="dark" data-dnt="true">${body}<p class="ending-official-post-source">&mdash; ${escapeHTML(author)} <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(postedLabel)}</a></p></blockquote></div>`;
+}
+// X の埋め込みスクリプトはクリア画面を開いた時だけ読み込む。2回目以降は読み込み済みの twttr で描き直す。
+function embedOfficialPost() {
+  const container = document.querySelector('.ending-official-post');
+  if (!container) return;
+  if (window.twttr?.widgets) { window.twttr.widgets.load(container); return; }
+  if (document.querySelector('script[data-x-widgets]')) return;
+  const script = document.createElement('script');
+  script.src = CONFIG.xWidgetsUrl;
+  script.async = true;
+  script.charset = 'utf-8';
+  script.dataset.xWidgets = '';
+  document.head.append(script);
+}
 function endingHTML() {
   const share = new URL('https://twitter.com/intent/tweet');
   share.searchParams.set('text', ENDING.shareText); share.searchParams.set('url', siteUrl);
@@ -197,7 +216,7 @@ function endingHTML() {
     </section><section class="ending-promotion"><p class="ending-question">消えた５人の運命は？</p><h2>兄を探しに向かった<br>「エレベーターおとこ」を<br>待ち受ける世界とは――。</h2>
       <p>５人の男女が迷い込んだ異世界。<br>しゃべるエレベーター。<br>彼らが探すものとは一体何なのか。</p>
       <div class="game-wordmark"><small>マジックリアリズム・パズルアドベンチャー</small><strong>ミスターエレベーター</strong><span>MR. ELEVATOR</span></div>
-      <p class="release-line">${escapeHTML(CONFIG.releaseLabel)}</p><a class="store-button" href="${escapeHTML(CONFIG.promotionUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(CONFIG.promotionLabel)} <span aria-hidden="true">↗</span></a>
+      <p class="release-line">${escapeHTML(CONFIG.releaseLabel)}</p>${officialPostHTML()}<a class="store-button" href="${escapeHTML(CONFIG.promotionUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(CONFIG.promotionLabel)} <span aria-hidden="true">↗</span></a>
     </section><section class="ending-credits" aria-labelledby="ending-credits-title"><h2 id="ending-credits-title">WebARG制作</h2>
       <dl>${ENDING.credits.map(({ role, name }) => `<div><dt>${escapeHTML(role)}</dt><dd>${escapeHTML(name)}</dd></div>`).join('')}</dl>
     </section><p class="ending-fiction">このゲームは「ミスターエレベーター」の番外編WebARGです。<br>登場する地名・人物・事件はすべて架空です。</p><button class="replay-button" data-action="replay">最初から遊ぶ</button></main>
@@ -274,7 +293,7 @@ function render(options = {}) {
     app.innerHTML = archiveHTML(query);
   }
   if (currentRoute.type === 'admin') app.innerHTML = adminHTML();
-  if (currentRoute.type === 'ending') app.innerHTML = endingHTML();
+  if (currentRoute.type === 'ending') { app.innerHTML = endingHTML(); embedOfficialPost(); }
   if (['snapshot', 'live'].includes(currentRoute.type)) { publicView = publicHTML(now); app.innerHTML = publicView.html; }
   if (!store.persistent) app.insertAdjacentHTML('beforeend', '<p class="storage-note" role="status">このブラウザーでは進行を保存できません。このタブを開いたままプレイしてください。</p>');
   const titles = { closed: '閉鎖のお知らせ', archive: 'インターネット魚拓', admin: '管理者画面', ending: 'クリア' };

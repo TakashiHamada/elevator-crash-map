@@ -16,8 +16,10 @@ export const CONFIG = {
   hintsKey: 'misuta-ere-hints-v1',
   siteUrl: 'https://takashihamada.github.io/elevator-crash-map/', // 公開先を変える場合は index.html の共有用URLも更新する。
   promotionUrl: 'https://gift10.co.jp/blogs/rules/elevator',
-  promotionLabel: '「ミスターエレベーター」公式サイト・ストアへ',
+  promotionLabel: '「ミスターエレベーター」公式サイトへ',
   releaseLabel: 'PS5®版 2026年11月27日（金）発売',
+  // クリア画面でPS5版の公式告知を表示する X の埋め込みスクリプト。
+  xWidgetsUrl: 'https://platform.twitter.com/widgets.js',
   tickInterval: 500,
   // 復元からニュース記事が掲示板に現れるまでの待機（脚本指定の5秒）。
   // 変更すると、変更前に保存された「掲載済み」の進行は isValidState で無効になり初期化される。
@@ -262,8 +264,20 @@ export const ABOUT_PARAGRAPHS = [
 ];
 export const ENDING = {
   credits: [
-    { role: '謎制作', name: 'okuta' },
-    { role: '実装', name: 'Takashi Hamada' }
+    { role: '謎作家', name: 'okuta' },
+    { role: 'Web実装', name: 'Takashi Hamada' },
+    { role: '地図描画', name: 'ChatGPT Images 2.0' }
   ],
+  // クリア画面の発売日の下で紹介するPS5版の公式告知。X の埋め込みスクリプトが読めない環境では、この文面を引用として表示する。
+  officialPost: {
+    url: 'https://x.com/PlayStation_jp/status/2118629460136390663',
+    paragraphs: [
+      '『ミスターエレベーター』がPS5®で11月27日（金）発売！',
+      '「私のことはミスターエレベーターとお呼びください」\nエレベーターに導かれ、奇妙な世界で謎を解くアドベンチャー。5人の主人公と5つの世界が、やがてひとつの結末へ。',
+      '#ミスターエレベーター'
+    ],
+    author: 'プレイステーション公式 (@PlayStation_jp)',
+    dateLabel: '2026年11月6日'
+  },
   shareText: 'あなたは「ミスターエレベーター」の真相の一端に触れた。\n#WebARG #ミスターエレベーター\n\n※このゲームは「ミスターエレベーター」の番外編WebARGです。'
 };

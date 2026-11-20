@@ -535,6 +535,14 @@ body[data-screen="admin"] #site-dialog:not([data-context="game"]) .button:not(.b
 .release-line { font-size: var(--text-small); color: #9cb49e; margin: 0 0 18px; }
 .store-button { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 17px 20px; background: #c2d2bd; border: 1px solid #c2d2bd; color: #263c2a !important; font-size: var(--text-small); text-decoration: none; max-width: 460px; }
 .store-button:hover { background: #d2dfcf; }
+/* PS5版の公式告知（発売日の下）。X の埋め込みが読めない場合は、下の blockquote が引用として残る。 */
+/* X は投稿カードを float で配置することがあるため、回り込みを止めて後続のボタンを必ず下に置く。 */
+.ending-official-post { display: flow-root; margin: 0 0 28px; }
+.ending-official-post .twitter-tweet { float: none !important; margin: 0 !important; }
+.ending-official-post blockquote.twitter-tweet { max-width: 550px; border-left: 3px solid #607869; padding: 4px 0 4px 18px; color: #becdc0; font-size: var(--text-small); line-height: 1.9; }
+.ending-official-post blockquote p { margin: 0 0 10px; }
+.ending-official-post-source { color: #809c87; font-size: var(--text-caption); }
+.ending-official-post-source a { color: #9cb49e; }
 .ending-credits { border-top: 1px solid #2e3f32; padding: 24px 0 28px; font-size: var(--text-small); line-height: 2; color: #8da18e; }
 .ending-credits h2 { font-size: var(--text-small); font-weight: 400; color: #b2c2b5; margin: 0 0 14px; }
 .ending-credits dl { margin: 0; }
