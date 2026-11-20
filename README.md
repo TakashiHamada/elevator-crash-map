@@ -79,9 +79,13 @@ python3 -m http.server 8000 --bind 127.0.0.1
 | `map.js` | 生成地図画像へのラベル・事故ピンの重ね合わせ、地図操作 |
 | `app.js` | 8画面の遷移と各画面の外枠（ヘッダー・フッター・管理者画面・クリア画面）、時間経過による表示更新、フォーム操作 |
 
-`CONFIG.siteUrl` は現在の公開先 `https://takashihamada.github.io/elevator-crash-map/` です。魚拓のURL検索とX共有に共通で使われます。公開先を変更する場合は、`index.html` の canonical・`og:url`・`og:image`・`twitter:image` も更新してください。SNSがJavaScriptを実行せずに読み取れるよう、共有設定はHTMLに直接記載しています。
+サーバーへのアップロード用ファイルは `npm run package` で `dist/misuta-beta.zip` にまとまります。zipにはフォルダを含めず、ファイルを直接入れています。サーバーの `arg/misuta-beta/` ディレクトリの中で展開すると、そのまま `https://gift10.net/arg/misuta-beta/` として公開されます。中身は配信に必要な `index.html`・`style.css`・JavaScriptの7ファイル・`assets/` の4ファイル（`favicon.svg`・`misuta-realistic-map.webp`・`admin-avatar.webp`・`ogp.jpg`）だけで、テスト・ツール・画像の原本PNG・プロンプトは含めません。配信するファイルを増やしたときは、`package.json` の `package` スクリプトにも追加してください。
 
-X・FacebookなどへのURL共有には、公開当時の地図が全面に広がる `assets/social-map.png`（1200×630）を指定しています。初期の事故18件を使い、プレイヤーが特定する追加の事故ピンは含めません。画像を更新する場合はローカルサーバーで `/tools/share-image.html` を開き、1200×630の表示領域をPNGとして保存して差し替えてください。地図画像・ラベル・ピンは実際の地図と同じコードで描画し、進行の保存内容は読み書きしません。
+`CONFIG.siteUrl` は公開先 `https://gift10.net/arg/misuta-beta/`（さくらのレンタルサーバー）です。魚拓のURL検索とX共有に共通で使われます。公開先を変更する場合は、`index.html` の canonical・`og:url`・`og:image`・`twitter:image` も更新してください。SNSがJavaScriptを実行せずに読み取れるよう、共有設定はHTMLに直接記載しています。
+
+X・FacebookなどへのURL共有には、地図の上に題字「三栖田えれ(β)」とMR.ELEVATORのロゴを載せたサムネイル `assets/ogp.jpg`（1280×720）を指定しています。画像を差し替える場合は同じパスに上書きし、寸法が変わったときは `index.html` の `og:image:width`・`og:image:height` も合わせてください（`test/sharing.test.js` が食い違いを検出します）。SNS側は画像URLごとにキャッシュするため、差し替えたら `og:image`・`twitter:image` の末尾の `?v=` の数字を上げてください。画像はsRGBで書き出し、端末固有のカラープロファイル（ICC）を埋め込まないでください（Discordでぼやけた仮表示のまま止まる問題への対策として除去しています）。
+
+旧共有画像の `assets/social-map.png`（1200×630）は現在参照していません。ローカルサーバーで `/tools/share-image.html` を開くと、初期の事故18件だけを載せた地図を実際の地図と同じコードで1200×630に描画できるため、サムネイルの背景素材を作り直すときに使えます（進行の保存内容は読み書きしません）。
 
 `CONFIG.promotionUrl` は、現時点では公式ゲームページです。PS5ストアURLが確定したら、`promotionLabel` と一緒に差し替えてください。発売日の表示は提供情報に合わせて「2026年11月27日（金）」としています。
 

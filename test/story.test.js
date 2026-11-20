@@ -44,9 +44,12 @@ test('サイト名・表記揺れ・自サイトURLで魚拓を検索できる',
     assert.equal(matchesArchiveQuery(query, 'https://example.com/arg/'), true, query);
   }
   assert.equal(matchesArchiveQuery('http://127.0.0.1:8000/', 'http://127.0.0.1:8000/'), true);
+  for (const query of ['gift10.net/arg/misuta-beta', 'www.gift10.net/arg/misuta-beta/', 'http://gift10.net/arg/misuta-beta/', 'https://www.gift10.net/arg/misuta-beta/index.html']) {
+    assert.equal(matchesArchiveQuery(query, CONFIG.siteUrl), true, query);
+  }
 });
 test('無関係な名前・別ホスト・別ディレクトリは検索に一致しない', () => {
-  for (const query of ['大島てる', '三栖田えれじゃない', 'https://example.com.evil.test/arg/', 'https://example.com/other/', 'javascript:alert(1)', '']) {
+  for (const query of ['大島てる', '三栖田えれじゃない', 'https://example.com.evil.test/arg/', 'https://example.com/other/', 'https://wwwexample.com/arg/', 'https://www.example.com.evil.test/arg/', 'ftp://example.com/arg/', 'javascript:alert(1)', '']) {
     assert.equal(matchesArchiveQuery(query, 'https://example.com/arg/'), false, query);
   }
 });

@@ -14,7 +14,7 @@ export const CONFIG = {
   archiveQueryKey: 'misuta-ere-archive-query-v1',
   // ゲーム進行とは独立したヒント表示のオン・オフ。
   hintsKey: 'misuta-ere-hints-v1',
-  siteUrl: 'https://takashihamada.github.io/elevator-crash-map/', // 公開先を変える場合は index.html の共有用URLも更新する。
+  siteUrl: 'https://gift10.net/arg/misuta-beta/', // 公開先を変える場合は index.html の共有用URLも更新する。
   promotionUrl: 'https://gift10.co.jp/blogs/rules/elevator',
   promotionLabel: '「ミスターエレベーター」公式サイトへ',
   releaseLabel: 'PS5®版 2026年11月27日（金）発売',

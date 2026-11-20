@@ -63,7 +63,11 @@ export function matchesArchiveQuery(query, siteUrl) {
     const raw = String(query).trim();
     const candidate = new URL(raw.includes('://') ? raw : expected.protocol + '//' + raw);
     const path = value => value.replace(/\/index\.html$/u, '/').replace(/\/+$/u, '');
-    return candidate.origin === expected.origin && path(candidate.pathname) === path(expected.pathname);
+    // 独自ドメインでは http:// や www. 付きでも同じサイトを指すため、表記の揺れとして一致させる。
+    const host = url => url.host.replace(/^www\./u, '');
+    const webProtocol = url => url.protocol === 'http:' || url.protocol === 'https:';
+    const sameSite = candidate.origin === expected.origin || (webProtocol(candidate) && webProtocol(expected) && host(candidate) === host(expected));
+    return sameSite && path(candidate.pathname) === path(expected.pathname);
   } catch { return false; }
 }
 export function validateReport(report) {
